@@ -1,7 +1,10 @@
 import { useEffect, useState } from "react";
 import api from "../api";
+import { updateAgent, createAgent } from "../api/agentApi";
 import { toast, ToastContainer } from "react-toastify";
 import "react-toastify/dist/ReactToastify.css";
+import { RetellWebClient } from "retell-client-js-sdk";
+import "./Dashboard.css";
 
 export default function Dashboard() {
   const [agents, setAgents] = useState([]);
@@ -10,287 +13,47 @@ export default function Dashboard() {
   const [error, setError] = useState(null);
   const [expandedCall, setExpandedCall] = useState(null);
   const [startingCall, setStartingCall] = useState(false);
+  const [activeCall, setActiveCall] = useState(null); // Track active call
+  const [retellClient, setRetellClient] = useState(null); // Store client instance
+  
+  // Agent editing state
+  const [editingAgent, setEditingAgent] = useState(null);
+  const [editForm, setEditForm] = useState({
+    name: "",
+    description: "",
+    prompt: "",
+    voice_settings: {
+      voice_id: "11labs-Adrian",
+      language: "en",
+      backchanneling: true,
+      filler_words: true,
+      interruption_sensitivity: 0.7,
+      response_delay: 0.8
+    }
+  });
+  const [updatingAgent, setUpdatingAgent] = useState(false);
 
-  // Form state for manual test call
+  // Scenario agent creation state
+  const [scenarioAgent, setScenarioAgent] = useState({
+    scenario_type: "",
+    driver_name: "",
+    load_number: "",
+  });
+  const [creatingScenarioAgent, setCreatingScenarioAgent] = useState(false);
+
+  // Manual test call form
   const [driverName, setDriverName] = useState("");
   const [phoneNumber, setPhoneNumber] = useState("");
   const [loadNumber, setLoadNumber] = useState("");
-  const [triggerStatus, setTriggerStatus] = useState(null);
+  const [selectedAgentId, setSelectedAgentId] = useState("");
 
-  // Inline styles for modern design
-  const styles = {
-    container: {
-      minHeight: '100vh',
-      background: 'linear-gradient(135deg, #667eea 0%, #764ba2 100%)',
-      padding: '0',
-      margin: '0',
-      fontFamily: "'Inter', -apple-system, BlinkMacSystemFont, sans-serif"
-    },
-    content: {
-      maxWidth: '1400px',
-      margin: '0 auto',
-      padding: '2rem',
-      background: 'rgba(255, 255, 255, 0.95)',
-      backdropFilter: 'blur(10px)',
-      minHeight: '100vh'
-    },
-    header: {
-      textAlign: 'center',
-      marginBottom: '3rem',
-      padding: '3rem 2rem',
-      background: 'linear-gradient(135deg, #667eea 0%, #764ba2 100%)',
-      borderRadius: '24px',
-      color: 'white',
-      boxShadow: '0 20px 40px rgba(0,0,0,0.15)',
-      position: 'relative',
-      overflow: 'hidden'
-    },
-    headerPattern: {
-      position: 'absolute',
-      top: '0',
-      left: '0',
-      right: '0',
-      bottom: '0',
-      background: 'url("data:image/svg+xml,%3Csvg width="60" height="60" viewBox="0 0 60 60" xmlns="http://www.w3.org/2000/svg"%3E%3Cg fill="none" fill-rule="evenodd"%3E%3Cg fill="%23ffffff" fill-opacity="0.05"%3E%3Ccircle cx="30" cy="30" r="2"/%3E%3C/g%3E%3C/g%3E%3C/svg%3E")',
-      opacity: '0.3'
-    },
-    title: {
-      fontSize: '3.5rem',
-      fontWeight: '900',
-      margin: '0 0 1rem 0',
-      textShadow: '2px 2px 4px rgba(0,0,0,0.3)',
-      position: 'relative',
-      zIndex: '1'
-    },
-    subtitle: {
-      fontSize: '1.3rem',
-      opacity: '0.95',
-      fontWeight: '300',
-      position: 'relative',
-      zIndex: '1'
-    },
-    section: {
-      background: 'white',
-      borderRadius: '20px',
-      padding: '2.5rem',
-      marginBottom: '2rem',
-      boxShadow: '0 15px 35px rgba(0,0,0,0.08)',
-      border: '1px solid rgba(255,255,255,0.2)',
-      transition: 'transform 0.3s ease, box-shadow 0.3s ease'
-    },
-    sectionHover: {
-      transform: 'translateY(-5px)',
-      boxShadow: '0 25px 50px rgba(0,0,0,0.15)'
-    },
-    sectionTitle: {
-      fontSize: '1.8rem',
-      fontWeight: '700',
-      color: '#2d3748',
-      marginBottom: '2rem',
-      display: 'flex',
-      alignItems: 'center',
-      gap: '0.75rem',
-      paddingBottom: '1rem',
-      borderBottom: '3px solid #f7fafc'
-    },
-    table: {
-      width: '100%',
-      borderCollapse: 'collapse',
-      borderRadius: '16px',
-      overflow: 'hidden',
-      boxShadow: '0 8px 25px rgba(0,0,0,0.06)',
-      background: 'white'
-    },
-    tableHeader: {
-      background: 'linear-gradient(135deg, #667eea 0%, #764ba2 100%)',
-      color: 'white',
-      padding: '1.25rem 1rem',
-      textAlign: 'left',
-      fontWeight: '600',
-      fontSize: '0.95rem',
-      textTransform: 'uppercase',
-      letterSpacing: '0.5px'
-    },
-    tableRow: {
-      borderBottom: '1px solid #f1f5f9',
-      transition: 'all 0.3s ease',
-      background: 'white'
-    },
-    tableRowHover: {
-      background: 'linear-gradient(90deg, #f8fafc 0%, #ffffff 100%)',
-      transform: 'translateX(5px)'
-    },
-    tableCell: {
-      padding: '1.25rem 1rem',
-      fontSize: '0.95rem',
-      color: '#4a5568'
-    },
-    form: {
-      display: 'flex',
-      flexDirection: 'column',
-      gap: '1.5rem',
-      maxWidth: '450px',
-      background: 'linear-gradient(145deg, #ffffff 0%, #f8fafc 100%)',
-      padding: '2rem',
-      borderRadius: '16px',
-      boxShadow: '0 10px 30px rgba(0,0,0,0.1)'
-    },
-    input: {
-      padding: '1rem 1.25rem',
-      border: '2px solid #e2e8f0',
-      borderRadius: '12px',
-      fontSize: '1rem',
-      transition: 'all 0.3s ease',
-      background: 'white',
-      color: '#2d3748',
-      boxShadow: '0 2px 4px rgba(0,0,0,0.02)'
-    },
-    inputFocus: {
-      borderColor: '#667eea',
-      boxShadow: '0 0 0 4px rgba(102, 126, 234, 0.1)',
-      outline: 'none',
-      transform: 'translateY(-2px)',
-      color: '#2d3748'
-    },
-    button: {
-      padding: '1rem 2.5rem',
-      background: 'linear-gradient(135deg, #667eea 0%, #764ba2 100%)',
-      color: 'white',
-      border: 'none',
-      borderRadius: '12px',
-      fontSize: '1.1rem',
-      fontWeight: '600',
-      cursor: 'pointer',
-      transition: 'all 0.3s ease',
-      boxShadow: '0 8px 25px rgba(102, 126, 234, 0.4)',
-      textTransform: 'uppercase',
-      letterSpacing: '0.5px'
-    },
-    buttonHover: {
-      transform: 'translateY(-3px)',
-      boxShadow: '0 15px 35px rgba(102, 126, 234, 0.6)'
-    },
-    buttonDisabled: {
-      opacity: '0.6',
-      cursor: 'not-allowed',
-      transform: 'none',
-      boxShadow: '0 4px 15px rgba(102, 126, 234, 0.2)'
-    },
-    secondaryButton: {
-      padding: '0.75rem 1.5rem',
-      background: 'linear-gradient(135deg, #48bb78 0%, #38a169 100%)',
-      color: 'white',
-      border: 'none',
-      borderRadius: '10px',
-      fontSize: '0.9rem',
-      fontWeight: '600',
-      cursor: 'pointer',
-      transition: 'all 0.3s ease',
-      boxShadow: '0 6px 20px rgba(72, 187, 120, 0.4)',
-      textTransform: 'uppercase',
-      letterSpacing: '0.3px'
-    },
-    badge: {
-      padding: '0.6rem 1.2rem',
-      borderRadius: '25px',
-      fontSize: '0.8rem',
-      fontWeight: '700',
-      textTransform: 'uppercase',
-      letterSpacing: '0.8px',
-      boxShadow: '0 4px 15px rgba(0,0,0,0.1)'
-    },
-    badgeSuccess: {
-      background: 'linear-gradient(135deg, #48bb78 0%, #38a169 100%)',
-      color: 'white'
-    },
-    badgeError: {
-      background: 'linear-gradient(135deg, #f56565 0%, #e53e3e 100%)',
-      color: 'white'
-    },
-    badgeWarning: {
-      background: 'linear-gradient(135deg, #ed8936 0%, #dd6b20 100%)',
-      color: 'white'
-    },
-    badgePending: {
-      background: 'linear-gradient(135deg, #a0aec0 0%, #718096 100%)',
-      color: 'white'
-    },
-    expandedContent: {
-      marginTop: '1.5rem',
-      paddingTop: '1.5rem',
-      borderTop: '3px solid #e2e8f0',
-      background: 'linear-gradient(145deg, #f8fafc 0%, #ffffff 100%)',
-      borderRadius: '12px',
-      padding: '1.5rem'
-    },
-    transcript: {
-      background: '#f7fafc',
-      padding: '1.5rem',
-      borderRadius: '12px',
-      border: '1px solid #e2e8f0',
-      fontSize: '0.95rem',
-      lineHeight: '1.7',
-      color: '#4a5568'
-    },
-    jsonData: {
-      background: '#1a202c',
-      color: '#e2e8f0',
-      padding: '1.5rem',
-      borderRadius: '12px',
-      fontSize: '0.85rem',
-      overflow: 'auto',
-      fontFamily: 'Monaco, Consolas, "Courier New", monospace',
-      border: '1px solid #2d3748',
-      boxShadow: 'inset 0 2px 4px rgba(0,0,0,0.1)'
-    },
-    loading: {
-      textAlign: 'center',
-      padding: '4rem',
-      fontSize: '1.3rem',
-      color: '#667eea',
-      fontWeight: '500'
-    },
-    error: {
-      textAlign: 'center',
-      padding: '4rem',
-      fontSize: '1.3rem',
-      color: '#f56565',
-      fontWeight: '500'
-    },
-    icon: {
-      fontSize: '1.4rem',
-      marginRight: '0.75rem'
-    },
-    emptyState: {
-      textAlign: 'center',
-      padding: '3rem',
-      color: '#a0aec0',
-      fontSize: '1.1rem',
-      fontStyle: 'italic'
-    },
-    statusMessage: {
-      padding: '1rem',
-      borderRadius: '10px',
-      fontSize: '0.9rem',
-      fontWeight: '500',
-      marginTop: '1rem'
-    },
-    statusSuccess: {
-      background: 'linear-gradient(135deg, #c6f6d5 0%, #9ae6b4 100%)',
-      color: '#22543d',
-      border: '1px solid #48bb78'
-    },
-    statusError: {
-      background: 'linear-gradient(135deg, #fed7d7 0%, #feb2b2 100%)',
-      color: '#742a2a',
-      border: '1px solid #f56565'
-    },
-    statusPending: {
-      background: 'linear-gradient(135deg, #fef5e7 0%, #fbd38d 100%)',
-      color: '#744210',
-      border: '1px solid #ed8936'
-    }
-  };
+  // Custom agent creation form
+  const [customAgent, setCustomAgent] = useState({
+    name: "",
+    description: "",
+    prompt: ""
+  });
+  const [creatingCustomAgent, setCreatingCustomAgent] = useState(false);
 
   useEffect(() => {
     const fetchData = async () => {
@@ -311,45 +74,140 @@ export default function Dashboard() {
     fetchData();
   }, []);
 
-  // --- Manual Test Call (Form) ---
+  // --- End Active Call ---
+  const handleEndCall = () => {
+    if (retellClient && activeCall) {
+      try {
+        retellClient.endCall();
+        setActiveCall(null);
+        setRetellClient(null);
+        toast.info("Call ended by user");
+      } catch (err) {
+        console.error("Error ending call:", err);
+        toast.error("Failed to end call");
+      }
+    }
+  };
+
+  // --- Create Custom Agent ---
+  const handleCreateCustomAgent = async (e) => {
+    e.preventDefault();
+    setCreatingCustomAgent(true);
+    try {
+      const agentData = {
+        name: customAgent.name,
+        description: customAgent.description,
+        prompt: customAgent.prompt,
+        settings: {
+          advanced_settings: {
+            voice_id: "11labs-Adrian",
+            language: "en",
+            backchanneling: true,
+            filler_words: true,
+            interruption_sensitivity: 0.7,
+            response_delay: 0.8
+          }
+        }
+      };
+
+      const res = await createAgent(agentData);
+      toast.success(`Custom agent "${customAgent.name}" created successfully!`);
+      setAgents((prev) => [...prev, res.data.data]);
+      setCustomAgent({
+        name: "",
+        description: "",
+        prompt: ""
+      });
+    } catch (err) {
+      console.error("Create custom agent error:", err);
+      toast.error("Failed to create custom agent.");
+    } finally {
+      setCreatingCustomAgent(false);
+    }
+  };
+
+  // --- Create Scenario Agent ---
+  const handleCreateScenarioAgent = async (e) => {
+    e.preventDefault();
+    setCreatingScenarioAgent(true);
+    try {
+      const res = await api.post("/agents/scenario", scenarioAgent);
+      toast.success(`Scenario agent created successfully!`);
+      setAgents((prev) => [...prev, res.data.data]);
+      setScenarioAgent({ scenario_type: "", driver_name: "", load_number: "" });
+    } catch (err) {
+      console.error("Create scenario agent error:", err);
+      toast.error("Failed to create scenario agent.");
+    } finally {
+      setCreatingScenarioAgent(false);
+    }
+  };
+
+  // --- Start Manual Call ---
   const handleStartTestCall = async (e) => {
     e.preventDefault();
     setStartingCall(true);
-    setTriggerStatus("pending");
-  
+
     try {
       const res = await api.post("/calls/start", {
         driver_name: driverName,
         phone_number: phoneNumber,
         load_number: loadNumber,
+        agent_id: selectedAgentId || null,
       });
-  
-      setTriggerStatus("success: Call initiated successfully!");
-      toast.success("Call initiated successfully!");
-  
-      // Open the mock session URL in a new tab
-      if (res.data.call.session_url) {
-        window.open(res.data.call.session_url, "_blank");
-      }
-  
-      // Refresh calls list
-      const callsRes = await api.get("/calls/");
-      setCalls(callsRes.data?.calls || []);
 
-      // Clear form
-      setDriverName("");
-      setPhoneNumber("");
-      setLoadNumber("");
+      if (res.data.status === "success" && res.data.access_token) {
+        toast.success("Call initiated successfully!");
+
+        // Use Retell Web SDK to start the call
+        const retellWebClient = new RetellWebClient();
+        setRetellClient(retellWebClient);
+        
+        // Set up event listeners
+        retellWebClient.on('call_started', () => {
+          toast.success("Call started - speak now!");
+          setActiveCall({
+            driver_name: driverName,
+            load_number: loadNumber,
+            phone_number: phoneNumber
+          });
+        });
+        
+        retellWebClient.on('call_ended', () => {
+          toast.info("Call ended");
+          setActiveCall(null);
+          setRetellClient(null);
+          // Refresh call records
+          refreshCallRecords();
+        });
+        
+        retellWebClient.on('error', (error) => {
+          console.error('Retell call error:', error);
+          toast.error(`Call error: ${error.message}`);
+          setActiveCall(null);
+          setRetellClient(null);
+        });
+        
+        // Start the call using the access token
+        await retellWebClient.startCall({
+          accessToken: res.data.access_token
+        });
+
+        setDriverName("");
+        setPhoneNumber("");
+        setLoadNumber("");
+      } else {
+        throw new Error(res.data.error || "Failed to create web call");
+      }
+
     } catch (err) {
       console.error("Start test call error:", err);
-      setTriggerStatus("error: Failed to start call.");
       toast.error("Failed to start call.");
     } finally {
       setStartingCall(false);
     }
-  };  
+  };
 
-  // --- Web Call Button ---
   const handleStartWebCall = async (agentId) => {
     setStartingCall(true);
     try {
@@ -358,18 +216,44 @@ export default function Dashboard() {
         load_number: "7891-B",
         agent_id: agentId,
       });
-  
-      const sessionUrl = res.data.call?.session_url;
-      if (sessionUrl) {
-        window.open(sessionUrl, "_blank");
-        toast.success("Web call started!");
+
+      if (res.data.status === "success" && res.data.access_token) {
+        // Use Retell Web SDK to start the call
+        const retellWebClient = new RetellWebClient();
+        setRetellClient(retellWebClient);
+        
+        // Set up event listeners
+        retellWebClient.on('call_started', () => {
+          toast.success("Web call started - speak now!");
+          setActiveCall({
+            driver_name: "Mike",
+            load_number: "7891-B",
+            phone_number: "WEB_CALL",
+            agent_id: agentId
+          });
+        });
+        
+        retellWebClient.on('call_ended', () => {
+          toast.info("Web call ended");
+          setActiveCall(null);
+          setRetellClient(null);
+          refreshCallRecords();
+        });
+        
+        retellWebClient.on('error', (error) => {
+          console.error('Retell call error:', error);
+          toast.error(`Call error: ${error.message}`);
+          setActiveCall(null);
+          setRetellClient(null);
+        });
+        
+        // Start the call using the access token
+        await retellWebClient.startCall({
+          accessToken: res.data.access_token
+        });
       } else {
-        toast.warning("Web call started but no session URL returned.");
+        throw new Error(res.data.error || "Failed to create web call");
       }
-      
-      // Refresh calls list
-      const callsRes = await api.get("/calls/");
-      setCalls(callsRes.data?.calls || []);
     } catch (err) {
       console.error("Failed to start web call:", err);
       toast.error("Could not start web call.");
@@ -378,253 +262,848 @@ export default function Dashboard() {
     }
   };
 
-  const getOutcomeBadge = (outcome) => {
-    const baseStyle = styles.badge;
-    let statusStyle = styles.badgePending;
-    
-    if (outcome === "Completed" || outcome === "Emergency Escalation" || outcome === "In-Transit Update" || outcome === "Arrival Confirmation") {
-      statusStyle = styles.badgeSuccess;
-    } else if (outcome === "Failed") {
-      statusStyle = styles.badgeError;
-    } else if (outcome === "Pending" || outcome === "In Progress") {
-      statusStyle = styles.badgeWarning;
+  // --- Refresh Call Records ---
+  const refreshCallRecords = async () => {
+    try {
+      const callsRes = await api.get("/calls/");
+      setCalls(callsRes.data?.calls || []);
+    } catch (err) {
+      console.error("Failed to refresh call records:", err);
     }
+  };
+
+  // --- Agent Editing Functions ---
+  const handleEditAgent = (agent) => {
+    setEditingAgent(agent);
     
+    const newForm = {
+      name: agent.name || "",
+      description: agent.description || "",
+      prompt: agent.prompt || "",
+      voice_settings: {
+        voice_id: agent.settings?.advanced_settings?.voice_id || "11labs-Adrian",
+        language: agent.settings?.advanced_settings?.language || "en",
+        backchanneling: agent.settings?.advanced_settings?.backchanneling ?? true,
+        filler_words: agent.settings?.advanced_settings?.filler_words ?? true,
+        interruption_sensitivity: agent.settings?.advanced_settings?.interruption_sensitivity ?? 0.7,
+        response_delay: agent.settings?.advanced_settings?.response_delay ?? 0.8
+      }
+    };
+    
+    setEditForm(newForm);
+  };
+
+  const handleUpdateAgent = async (e) => {
+    e.preventDefault();
+    setUpdatingAgent(true);
+    
+    try {
+      const updateData = {
+        name: editForm.name,
+        description: editForm.description,
+        prompt: editForm.prompt,
+        settings: {
+          ...editingAgent.settings,
+          advanced_settings: editForm.voice_settings
+        }
+      };
+
+      const res = await updateAgent(editingAgent.id, updateData);
+      toast.success("Agent updated successfully in both Retell AI and Supabase!");
+      
+      // Refresh agents list
+      const agentsRes = await api.get("/agents/");
+      setAgents(agentsRes.data?.data || []);
+      
+      // Close edit form
+      setEditingAgent(null);
+      setEditForm({
+        name: "",
+        description: "",
+        prompt: "",
+        voice_settings: {
+          voice_id: "11labs-Adrian",
+          language: "en",
+          backchanneling: true,
+          filler_words: true,
+          interruption_sensitivity: 0.7,
+          response_delay: 0.8
+        }
+      });
+    } catch (err) {
+      console.error("Update agent error:", err);
+      toast.error("Failed to update agent.");
+    } finally {
+      setUpdatingAgent(false);
+    }
+  };
+
+  const handleCancelEdit = () => {
+    setEditingAgent(null);
+    setEditForm({
+      name: "",
+      description: "",
+      prompt: "",
+      voice_settings: {
+        voice_id: "11labs-Adrian",
+        language: "en",
+        backchanneling: true,
+        filler_words: true,
+        interruption_sensitivity: 0.7,
+        response_delay: 0.8
+      }
+    });
+  };
+
+  if (loading)
     return (
-      <span style={{...baseStyle, ...statusStyle}}>
-        {outcome || "Pending"}
-      </span>
+      <div className="p-10 text-center text-xl text-indigo-600">
+        ⏳ Loading dashboard...
+      </div>
     );
-  };
 
-  const getStatusMessageStyle = (status) => {
-    if (status?.includes("success")) return styles.statusSuccess;
-    if (status?.includes("error")) return styles.statusError;
-    return styles.statusPending;
-  };
-
-  if (loading) return (
-    <div style={styles.container}>
-      <div style={styles.loading}>
-        <div style={{fontSize: '2rem', marginBottom: '1rem'}}>⏳</div>
-        Loading dashboard...
+  if (error)
+    return (
+      <div className="p-10 text-center text-red-500 text-xl">
+        ❌ {error}
       </div>
-    </div>
-  );
-  
-  if (error) return (
-    <div style={styles.container}>
-      <div style={styles.error}>
-        <div style={{fontSize: '2rem', marginBottom: '1rem'}}>❌</div>
-        {error}
-      </div>
-    </div>
-  );
+    );
 
   return (
-    <div style={styles.container}>
-      <ToastContainer 
-        position="top-right" 
-        autoClose={3000}
-        style={{ fontSize: '14px' }}
-      />
+    <div className="dashboard-container">
+      <ToastContainer position="top-right" autoClose={3000} />
       
-      <div style={styles.content}>
-        {/* Header */}
-        <div style={styles.header}>
-          <div style={styles.headerPattern}></div>
-          <h1 style={styles.title}>🎯 AI Voice Agent Dashboard</h1>
-          <p style={styles.subtitle}>Configure, Test & Analyze Voice Agent Calls</p>
+      <div className="dashboard-content">
+        
+        {/* Header Section */}
+        <div className="dashboard-header">
+          <div className="dashboard-logo">
+            <span style={{ fontSize: '2.5rem' }}>🎯</span>
+          </div>
+          <h1 className="dashboard-title">
+            AI Voice Agent Dashboard
+          </h1>
+          <p className="dashboard-subtitle">
+            Configure intelligent voice agents, conduct test calls, and analyze conversation results with ease
+          </p>
         </div>
 
-        {/* Agent Configurations Section */}
-        <div style={styles.section}>
-          <h2 style={styles.sectionTitle}>
-            <span style={styles.icon}>🤖</span>
-            Agent Configurations
-          </h2>
-          {agents.length === 0 ? (
-            <div style={styles.emptyState}>
-              <div style={{fontSize: '3rem', marginBottom: '1rem'}}>📋</div>
-              No agents configured yet.
+        {/* Active Call Status */}
+        {activeCall && (
+          <div className="active-call-banner">
+            <div className="active-call-content">
+              <div className="active-call-info">
+                <div className="active-call-indicator"></div>
+                <div>
+                  <h3 style={{ color: '#2d5016', fontWeight: '600', margin: '0 0 0.25rem 0' }}>
+                    📞 Active Call
+                  </h3>
+                  <p style={{ color: '#2d5016', margin: 0, fontSize: '0.9rem' }}>
+                    {activeCall.driver_name} • Load {activeCall.load_number}
+                  </p>
+                </div>
+              </div>
+              <button
+                onClick={handleEndCall}
+                className="btn btn-danger"
+                style={{ padding: '0.75rem 1.5rem', fontSize: '0.9rem' }}
+              >
+                End Call
+              </button>
             </div>
-          ) : (
-            <div style={{overflow: 'auto', borderRadius: '16px'}}>
-              <table style={styles.table}>
-                <thead>
-                  <tr>
-                    <th style={styles.tableHeader}>Name</th>
-                    <th style={styles.tableHeader}>Description</th>
-                    <th style={styles.tableHeader}>Prompt</th>
-                    <th style={styles.tableHeader}>Actions</th>
-                  </tr>
-                </thead>
-                <tbody>
+          </div>
+        )}
+
+        {/* Main Content Grid */}
+        <div className="main-content-grid">
+          
+          {/* Create Custom Agent Section */}
+          <div className="dashboard-card">
+            <div className="section-header">
+              <div className="section-icon" style={{ background: 'linear-gradient(135deg, #ff6b6b, #ee5a52)' }}>
+                🤖
+              </div>
+              <h2 className="section-title">Create Custom Agent</h2>
+            </div>
+            
+            <form onSubmit={handleCreateCustomAgent}>
+              <div className="form-group">
+                <label className="form-label">Agent Name</label>
+                <input
+                  type="text"
+                  placeholder="Enter agent name"
+                  value={customAgent.name}
+                  onChange={(e) => setCustomAgent({...customAgent, name: e.target.value})}
+                  required
+                  className="modal-form-input"
+                />
+              </div>
+              
+              <div className="form-group">
+                <label className="form-label">Description</label>
+                <input
+                  type="text"
+                  placeholder="Enter agent description"
+                  value={customAgent.description}
+                  onChange={(e) => setCustomAgent({...customAgent, description: e.target.value})}
+                  className="modal-form-input"
+                />
+              </div>
+              
+              <div className="form-group">
+                <label className="form-label">Agent Prompt</label>
+                <textarea
+                  placeholder="Enter the agent's conversation prompt"
+                  value={customAgent.prompt}
+                  onChange={(e) => setCustomAgent({...customAgent, prompt: e.target.value})}
+                  required
+                  className="modal-form-textarea"
+                  rows="4"
+                  style={{ minHeight: '100px' }}
+                />
+              </div>
+
+              
+              <button
+                type="submit"
+                disabled={creatingCustomAgent}
+                className="btn btn-primary"
+                style={{ width: '100%' }}
+              >
+                {creatingCustomAgent ? (
+                  <>
+                    <span className="loading-spinner" style={{ marginRight: '0.5rem' }}></span>
+                    Creating...
+                  </>
+                ) : (
+                  '🤖 Create Custom Agent'
+                )}
+              </button>
+            </form>
+          </div>
+
+          {/* Agent Creation Section */}
+          <div className="dashboard-card">
+            <div className="section-header">
+              <div className="section-icon" style={{ background: 'linear-gradient(135deg, #667eea, #764ba2)' }}>
+                🎯
+              </div>
+              <h2 className="section-title">Create Scenario Agent</h2>
+            </div>
+            
+            <form onSubmit={handleCreateScenarioAgent}>
+              <div className="form-group">
+                <label className="form-label">Scenario Type</label>
+                <select
+                  value={scenarioAgent.scenario_type}
+                  onChange={(e) =>
+                    setScenarioAgent({ ...scenarioAgent, scenario_type: e.target.value })
+                  }
+                  required
+                  className="modal-form-select"
+                >
+                  <option value="">Select Scenario Type</option>
+                  <option value="dispatch_checkin">Dispatch Check-in Agent</option>
+                  <option value="emergency_protocol">Emergency Protocol Agent</option>
+                </select>
+              </div>
+              
+              <div className="form-group">
+                <label className="form-label">Driver Name (Optional)</label>
+                <input
+                  type="text"
+                  placeholder="Enter driver name for personalized prompts"
+                  value={scenarioAgent.driver_name}
+                  onChange={(e) =>
+                    setScenarioAgent({ ...scenarioAgent, driver_name: e.target.value })
+                  }
+                  className="modal-form-input"
+                />
+              </div>
+              
+              <div className="form-group">
+                <label className="form-label">Load Number (Optional)</label>
+                <input
+                  type="text"
+                  placeholder="Enter load number for context"
+                  value={scenarioAgent.load_number}
+                  onChange={(e) =>
+                    setScenarioAgent({ ...scenarioAgent, load_number: e.target.value })
+                  }
+                  className="modal-form-input"
+                />
+              </div>
+              
+              <button
+                type="submit"
+                disabled={creatingScenarioAgent}
+                className="btn btn-primary"
+                style={{ width: '100%' }}
+              >
+                {creatingScenarioAgent ? (
+                  <>
+                    <span className="loading-spinner" style={{ marginRight: '0.5rem' }}></span>
+                    Creating...
+                  </>
+                ) : (
+                  '🎯 Create Scenario Agent'
+                )}
+              </button>
+            </form>
+          </div>
+
+          {/* Manual Test Call Section */}
+          <div className="dashboard-card">
+            <div className="section-header">
+              <div className="section-icon" style={{ background: 'linear-gradient(135deg, #4ecdc4, #44a08d)' }}>
+                📞
+              </div>
+              <h2 className="section-title">Manual Test Call</h2>
+            </div>
+            
+            <form onSubmit={handleStartTestCall}>
+              <div className="form-group">
+                <label className="form-label">Select Agent (Optional)</label>
+                <select
+                  value={selectedAgentId}
+                  onChange={(e) => setSelectedAgentId(e.target.value)}
+                  className="modal-form-select"
+                >
+                  <option value="">Use Default Agent</option>
                   {agents.map((agent) => (
-                    <tr 
-                      key={agent.id} 
-                      style={styles.tableRow}
-                      onMouseEnter={(e) => e.target.closest('tr').style.background = 'linear-gradient(90deg, #f8fafc 0%, #ffffff 100%)'}
-                      onMouseLeave={(e) => e.target.closest('tr').style.background = 'white'}
-                    >
-                      <td style={{...styles.tableCell, fontWeight: '600'}}>{agent.name}</td>
-                      <td style={styles.tableCell}>{agent.description}</td>
-                      <td style={{...styles.tableCell, maxWidth: '300px', overflow: 'hidden', textOverflow: 'ellipsis'}}>
-                        {agent.prompt}
-                      </td>
-                      <td style={styles.tableCell}>
-                        <button
-                          disabled={startingCall}
-                          onClick={() => handleStartWebCall(agent.id)}
-                          style={{
-                            ...styles.secondaryButton,
-                            ...(startingCall ? styles.buttonDisabled : {})
-                          }}
-                          onMouseEnter={(e) => !startingCall && (e.target.style.transform = 'translateY(-2px)')}
-                          onMouseLeave={(e) => !startingCall && (e.target.style.transform = 'translateY(0)')}
-                        >
-                          {startingCall ? "Starting..." : "🚀 Start Web Call"}
-                        </button>
-                      </td>
-                    </tr>
+                    <option key={agent.id} value={agent.id}>
+                      {agent.name} {agent.settings?.scenario_type ? `(${agent.settings.scenario_type === 'dispatch_checkin' ? 'Dispatch Check-in' : 'Emergency Protocol'})` : '(Custom)'}
+                    </option>
                   ))}
-                </tbody>
-              </table>
-            </div>
-          )}
+                </select>
+              </div>
+
+              <div className="form-group">
+                <label className="form-label">Driver Name</label>
+                <input
+                  type="text"
+                  placeholder="Enter driver name"
+                  value={driverName}
+                  onChange={(e) => setDriverName(e.target.value)}
+                  required
+                  className="modal-form-input"
+                />
+              </div>
+              
+              <div className="form-group">
+                <label className="form-label">Phone Number</label>
+                <input
+                  type="text"
+                  placeholder="Enter phone number"
+                  value={phoneNumber}
+                  onChange={(e) => setPhoneNumber(e.target.value)}
+                  required
+                  className="modal-form-input"
+                />
+              </div>
+              
+              <div className="form-group">
+                <label className="form-label">Load Number</label>
+                <input
+                  type="text"
+                  placeholder="Enter load number"
+                  value={loadNumber}
+                  onChange={(e) => setLoadNumber(e.target.value)}
+                  required
+                  className="modal-form-input"
+                />
+              </div>
+              
+              <button
+                type="submit"
+                disabled={startingCall || activeCall}
+                className="btn btn-secondary"
+                style={{ width: '100%' }}
+              >
+                {startingCall ? (
+                  <>
+                    <span className="loading-spinner" style={{ marginRight: '0.5rem' }}></span>
+                    Starting...
+                  </>
+                ) : activeCall ? (
+                  'Call in Progress'
+                ) : (
+                  '🚀 Start Test Call'
+                )}
+              </button>
+            </form>
+          </div>
         </div>
 
-        {/* Manual Test Call Section */}
-        <div style={styles.section}>
-          <h2 style={styles.sectionTitle}>
-            <span style={styles.icon}>📞</span>
-            Start Manual Test Call
-          </h2>
-          <form onSubmit={handleStartTestCall} style={styles.form}>
-            <input
-              type="text"
-              placeholder="Driver Name (e.g., Mike Johnson)"
-              value={driverName}
-              onChange={(e) => setDriverName(e.target.value)}
-              style={styles.input}
-              onFocus={(e) => Object.assign(e.target.style, styles.inputFocus)}
-              onBlur={(e) => Object.assign(e.target.style, styles.input)}
-              required
-            />
-            <input
-              type="text"
-              placeholder="Phone Number (e.g., +1234567890)"
-              value={phoneNumber}
-              onChange={(e) => setPhoneNumber(e.target.value)}
-              style={styles.input}
-              onFocus={(e) => Object.assign(e.target.style, styles.inputFocus)}
-              onBlur={(e) => Object.assign(e.target.style, styles.input)}
-              required
-            />
-            <input
-              type="text"
-              placeholder="Load Number (e.g., 7891-B)"
-              value={loadNumber}
-              onChange={(e) => setLoadNumber(e.target.value)}
-              style={styles.input}
-              onFocus={(e) => Object.assign(e.target.style, styles.inputFocus)}
-              onBlur={(e) => Object.assign(e.target.style, styles.input)}
-              required
-            />
-            <button
-              type="submit"
-              disabled={startingCall}
-              style={{
-                ...styles.button,
-                ...(startingCall ? styles.buttonDisabled : {})
-              }}
-              onMouseEnter={(e) => !startingCall && Object.assign(e.target.style, styles.buttonHover)}
-              onMouseLeave={(e) => !startingCall && Object.assign(e.target.style, styles.button)}
-            >
-              {startingCall ? "⏳ Starting..." : "🚀 Start Test Call"}
-            </button>
-          </form>
-          {triggerStatus && (
-            <div style={{...styles.statusMessage, ...getStatusMessageStyle(triggerStatus)}}>
-              {triggerStatus}
+        {/* Configured Agents Section */}
+        <div className="dashboard-card">
+          <div className="section-header">
+            <div className="section-icon" style={{ background: 'linear-gradient(135deg, #4ecdc4, #44a08d)' }}>
+              🤖
             </div>
-          )}
-        </div>
-
-        {/* Recent Calls Section */}
-        <div style={styles.section}>
-          <h2 style={styles.sectionTitle}>
-            <span style={styles.icon}>📊</span>
-            Recent Call Records
-          </h2>
-          {calls.length === 0 ? (
-            <div style={styles.emptyState}>
-              <div style={{fontSize: '3rem', marginBottom: '1rem'}}>📋</div>
-              No call records yet. Start a test call to see results here!
+            <div className="section-title-container">
+              <h2 className="section-title">Configured Agents</h2>
+              <div className="agent-count">
+                {agents.length} agent{agents.length !== 1 ? 's' : ''}
+              </div>
+            </div>
+          </div>
+          
+          {agents.length === 0 ? (
+            <div className="empty-state">
+              <div className="empty-state-icon">🤖</div>
+              <h3>No agents configured yet</h3>
+              <p>Create a scenario agent to get started with voice calls!</p>
             </div>
           ) : (
-            <div style={{overflow: 'auto', borderRadius: '16px'}}>
-              <table style={styles.table}>
-                <thead>
-                  <tr>
-                    <th style={styles.tableHeader}>Driver</th>
-                    <th style={styles.tableHeader}>Phone</th>
-                    <th style={styles.tableHeader}>Load</th>
-                    <th style={styles.tableHeader}>Status</th>
-                    <th style={styles.tableHeader}>Details</th>
-                  </tr>
-                </thead>
-                <tbody>
-                  {calls.map((call) => (
-                    <>
-                      <tr
-                        key={call.id}
-                        style={styles.tableRow}
-                        onMouseEnter={(e) => e.target.closest('tr').style.background = 'linear-gradient(90deg, #f8fafc 0%, #ffffff 100%)'}
-                        onMouseLeave={(e) => e.target.closest('tr').style.background = 'white'}
-                      >
-                        <td style={{...styles.tableCell, fontWeight: '600'}}>{call.driver_name}</td>
-                        <td style={styles.tableCell}>{call.phone_number}</td>
-                        <td style={styles.tableCell}>{call.load_number || "N/A"}</td>
-                        <td style={styles.tableCell}>{getOutcomeBadge(call.call_outcome)}</td>
-                        <td 
-                          style={{...styles.tableCell, color: '#667eea', cursor: 'pointer', fontWeight: '500'}}
-                          onClick={() => setExpandedCall(expandedCall === call.id ? null : call.id)}
-                        >
-                          {expandedCall === call.id ? "🔽 Hide Details" : "📖 View Details"}
-                        </td>
-                      </tr>
-                      {expandedCall === call.id && (
-                        <tr key={`${call.id}-details`}>
-                          <td colSpan="5" style={{padding: '0'}}>
-                            <div style={styles.expandedContent}>
-                              <div style={{display: 'grid', gap: '1.5rem'}}>
-                                <div>
-                                  <h4 style={{fontWeight: '600', marginBottom: '0.5rem', color: '#2d3748'}}>📝 Transcript:</h4>
-                                  <div style={styles.transcript}>
-                                    {call.transcript || "No transcript available."}
-                                  </div>
-                                </div>
-                                {call.structured_data && (
-                                  <div>
-                                    <h4 style={{fontWeight: '600', marginBottom: '0.5rem', color: '#2d3748'}}>📊 Structured Data:</h4>
-                                    <pre style={styles.jsonData}>
-                                      {JSON.stringify(call.structured_data, null, 2)}
-                                    </pre>
-                                  </div>
-                                )}
-                              </div>
-                            </div>
-                          </td>
-                        </tr>
+            <div className="agent-grid">
+              {agents.map((agent) => {
+                const scenarioType = agent.settings?.scenario_type;
+                const isScenarioAgent = !!scenarioType;
+                return (
+                  <div
+                    key={agent.id}
+                    className={`agent-card ${isScenarioAgent ? 'scenario' : ''}`}
+                  >
+                    <div className="agent-header">
+                      <h3 className="agent-name">{agent.name}</h3>
+                      {isScenarioAgent && (
+                        <span className="agent-badge">SCENARIO</span>
                       )}
-                    </>
-                  ))}
-                </tbody>
-              </table>
+                    </div>
+                    <p className="agent-description">{agent.description}</p>
+                    <p className="agent-type">
+                      Type: {isScenarioAgent 
+                        ? (scenarioType === 'dispatch_checkin' ? 'Dispatch Check-in' : 'Emergency Protocol')
+                        : 'Custom'
+                      }
+                    </p>
+                    <div style={{ display: 'flex', gap: '0.5rem', width: '100%' }}>
+                      <button
+                        onClick={() => handleEditAgent(agent)}
+                        className="btn btn-secondary"
+                        style={{ flex: 1, padding: '0.75rem', fontSize: '0.9rem' }}
+                      >
+                        ✏️ Edit
+                      </button>
+                      <button
+                        onClick={() => handleStartWebCall(agent.id)}
+                        disabled={startingCall || activeCall}
+                        className={`btn ${isScenarioAgent ? 'btn-primary' : 'btn-secondary'}`}
+                        style={{ flex: 1, padding: '0.75rem' }}
+                      >
+                        {startingCall ? (
+                          <>
+                            <span className="loading-spinner" style={{ marginRight: '0.5rem' }}></span>
+                            Starting...
+                          </>
+                        ) : activeCall ? (
+                          'Busy'
+                        ) : (
+                          'Start Call'
+                        )}
+                      </button>
+                    </div>
+                  </div>
+                );
+              })}
             </div>
           )}
         </div>
+
+        {/* Call Records Section */}
+        <div className="dashboard-card call-records">
+          <div className="section-header">
+            <div className="section-icon" style={{ background: 'linear-gradient(135deg, #ff6b6b, #ee5a52)' }}>
+              📊
+            </div>
+            <div className="section-title-container">
+              <h2 className="section-title">Recent Calls</h2>
+              <button
+                onClick={refreshCallRecords}
+                className="btn refresh-btn"
+              >
+                🔄 Refresh
+              </button>
+            </div>
+          </div>
+          
+          {calls.length === 0 ? (
+            <div className="empty-state">
+              <div className="empty-state-icon">📞</div>
+              <h3>No calls yet</h3>
+              <p>Start a test call to see results here!</p>
+            </div>
+          ) : (
+            <div>
+              {calls.map((call) => (
+                <div
+                  key={call.id}
+                  className="call-item"
+                  onClick={() => setExpandedCall(expandedCall === call.id ? null : call.id)}
+                >
+                  <div className="call-header">
+                    <div style={{ display: 'flex', alignItems: 'center' }}>
+                      <div className="call-avatar">
+                        {call.driver_name?.charAt(0) || "?"}
+                      </div>
+                      <div className="call-info">
+                        <h3>{call.driver_name}</h3>
+                        <p>{call.phone_number} • Load {call.load_number}</p>
+                      </div>
+                    </div>
+                    <div style={{ display: 'flex', alignItems: 'center', gap: '1rem' }}>
+                      <span className={`status-badge ${
+                        call.call_outcome === "Completed" || call.call_outcome === "In-Transit Update" || call.call_outcome === "Arrival Confirmation"
+                          ? "status-completed"
+                          : call.call_outcome === "Emergency Escalation"
+                          ? "status-emergency"
+                          : call.call_outcome === "Pending"
+                          ? "status-pending"
+                          : "status-failed"
+                      }`}>
+                        {call.call_outcome || "Pending"}
+                      </span>
+                      <div style={{ 
+                        width: '32px', 
+                        height: '32px', 
+                        background: '#f1f5f9', 
+                        borderRadius: '8px', 
+                        display: 'flex', 
+                        alignItems: 'center', 
+                        justifyContent: 'center',
+                        cursor: 'pointer',
+                        transition: 'all 0.2s ease'
+                      }}>
+                        <span style={{ color: '#718096', fontSize: '0.8rem' }}>
+                          {expandedCall === call.id ? "▼" : "▶"}
+                        </span>
+                      </div>
+                    </div>
+                  </div>
+                  
+                  {/* Expanded Call Details */}
+                  {expandedCall === call.id && (
+                    <div className="expandable-content">
+                      {/* Transcript */}
+                      {call.transcript && (
+                        <div className="transcript-section">
+                          <h4 style={{ 
+                            fontWeight: '600', 
+                            color: '#2d3748', 
+                            marginBottom: '0.75rem',
+                            display: 'flex',
+                            alignItems: 'center'
+                          }}>
+                            <span style={{ marginRight: '0.5rem' }}>📝</span>
+                            Call Transcript
+                          </h4>
+                          <div className="transcript-content">
+                            {call.transcript}
+                          </div>
+                        </div>
+                      )}
+                      
+                      {/* Structured Data */}
+                      {call.structured_data && Object.keys(call.structured_data).length > 0 && (
+                        <div>
+                          <h4 style={{ 
+                            fontWeight: '600', 
+                            color: '#2d3748', 
+                            marginBottom: '0.75rem',
+                            display: 'flex',
+                            alignItems: 'center'
+                          }}>
+                            <span style={{ marginRight: '0.5rem' }}>📊</span>
+                            Structured Data
+                          </h4>
+                          <div className="structured-data">
+                            <pre>{JSON.stringify(call.structured_data, null, 2)}</pre>
+                          </div>
+                        </div>
+                      )}
+                    </div>
+                  )}
+                </div>
+              ))}
+            </div>
+          )}
+        </div>
+
+        {/* Agent Edit Modal */}
+        {editingAgent && (
+          <div style={{
+            position: 'fixed',
+            top: 0,
+            left: 0,
+            right: 0,
+            bottom: 0,
+            background: 'rgba(0, 0, 0, 0.5)',
+            display: 'flex',
+            alignItems: 'center',
+            justifyContent: 'center',
+            zIndex: 1000,
+            padding: '1rem'
+          }}>
+            <div style={{
+              background: 'white',
+              borderRadius: '20px',
+              padding: '2rem',
+              maxWidth: '600px',
+              width: '100%',
+              maxHeight: '90vh',
+              overflowY: 'auto',
+              boxShadow: '0 25px 50px rgba(0, 0, 0, 0.25)'
+            }}>
+              <div style={{
+                display: 'flex',
+                alignItems: 'center',
+                justifyContent: 'space-between',
+                marginBottom: '2rem',
+                paddingBottom: '1rem',
+                borderBottom: '2px solid #e2e8f0'
+              }}>
+                <h2 style={{
+                  fontSize: '1.5rem',
+                  fontWeight: '700',
+                  color: '#2d3748',
+                  margin: 0,
+                  display: 'flex',
+                  alignItems: 'center'
+                }}>
+                  <span style={{ marginRight: '0.5rem' }}>✏️</span>
+                  Edit Agent: {editingAgent.name}
+                </h2>
+                <button
+                  onClick={handleCancelEdit}
+                  style={{
+                    background: 'none',
+                    border: 'none',
+                    fontSize: '1.5rem',
+                    cursor: 'pointer',
+                    color: '#718096',
+                    padding: '0.5rem'
+                  }}
+                >
+                  ✕
+                </button>
+              </div>
+
+              <form onSubmit={handleUpdateAgent}>
+                <div className="form-group">
+                  <label className="form-label">Agent Name</label>
+                  <input
+                    type="text"
+                    value={editForm.name}
+                    onChange={(e) => setEditForm({...editForm, name: e.target.value})}
+                    required
+                    className="modal-form-input"
+                    placeholder="Enter agent name"
+                  />
+                </div>
+
+                <div className="form-group">
+                  <label className="form-label">Description</label>
+                  <input
+                    type="text"
+                    value={editForm.description}
+                    onChange={(e) => setEditForm({...editForm, description: e.target.value})}
+                    className="modal-form-input"
+                    placeholder="Enter agent description"
+                  />
+                </div>
+
+                <div className="form-group">
+                  <label className="form-label">Agent Prompt</label>
+                  <textarea
+                    value={editForm.prompt}
+                    onChange={(e) => setEditForm({...editForm, prompt: e.target.value})}
+                    required
+                    className="modal-form-textarea"
+                    placeholder="Enter the agent's conversation prompt"
+                    rows="6"
+                    style={{ minHeight: '120px' }}
+                  />
+                </div>
+
+                {/* Voice Settings - Only show for custom agents, not scenario agents */}
+                {!editingAgent?.settings?.scenario_type && (
+                  <div style={{ marginBottom: '1.5rem' }}>
+                    <h3 style={{
+                      fontSize: '1.1rem',
+                      fontWeight: '600',
+                      color: '#2d3748',
+                      marginBottom: '1rem'
+                    }}>
+                      Voice Settings
+                    </h3>
+                    
+                    <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '1rem' }}>
+                      <div className="form-group">
+                        <label className="form-label">Voice ID</label>
+                        <select
+                          value={editForm.voice_settings.voice_id}
+                          onChange={(e) => setEditForm({
+                            ...editForm,
+                            voice_settings: {...editForm.voice_settings, voice_id: e.target.value}
+                          })}
+                          className="modal-form-select"
+                        >
+                          <option value="11labs-Adrian">Adrian (Male)</option>
+                          <option value="11labs-Sarah">Sarah (Female)</option>
+                          <option value="11labs-Michael">Michael (Male)</option>
+                          <option value="11labs-Emma">Emma (Female)</option>
+                        </select>
+                      </div>
+
+                      <div className="form-group">
+                        <label className="form-label">Language</label>
+                        <select
+                          value={editForm.voice_settings.language}
+                          onChange={(e) => setEditForm({
+                            ...editForm,
+                            voice_settings: {...editForm.voice_settings, language: e.target.value}
+                          })}
+                          className="modal-form-select"
+                        >
+                          <option value="en">English</option>
+                          <option value="es">Spanish</option>
+                          <option value="fr">French</option>
+                          <option value="de">German</option>
+                        </select>
+                      </div>
+                    </div>
+
+                    <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '1rem', marginTop: '1rem' }}>
+                      <div className="form-group">
+                        <label className="form-label">Interruption Sensitivity</label>
+                        <input
+                          type="range"
+                          min="0"
+                          max="1"
+                          step="0.1"
+                          value={editForm.voice_settings.interruption_sensitivity}
+                          onChange={(e) => setEditForm({
+                            ...editForm,
+                            voice_settings: {...editForm.voice_settings, interruption_sensitivity: parseFloat(e.target.value)}
+                          })}
+                          className="modal-form-input"
+                        />
+                        <div style={{ fontSize: '0.8rem', color: '#718096', textAlign: 'center' }}>
+                          {editForm.voice_settings.interruption_sensitivity}
+                        </div>
+                      </div>
+
+                      <div className="form-group">
+                        <label className="form-label">Response Delay (seconds)</label>
+                        <input
+                          type="range"
+                          min="0"
+                          max="2"
+                          step="0.1"
+                          value={editForm.voice_settings.response_delay}
+                          onChange={(e) => setEditForm({
+                            ...editForm,
+                            voice_settings: {...editForm.voice_settings, response_delay: parseFloat(e.target.value)}
+                          })}
+                          className="modal-form-input"
+                        />
+                        <div style={{ fontSize: '0.8rem', color: '#718096', textAlign: 'center' }}>
+                          {editForm.voice_settings.response_delay}s
+                        </div>
+                      </div>
+                    </div>
+
+                    <div style={{ display: 'flex', gap: '1rem', marginTop: '1rem' }}>
+                      <label style={{ display: 'flex', alignItems: 'center', cursor: 'pointer' }}>
+                        <input
+                          type="checkbox"
+                          checked={editForm.voice_settings.backchanneling}
+                          onChange={(e) => setEditForm({
+                            ...editForm,
+                            voice_settings: {...editForm.voice_settings, backchanneling: e.target.checked}
+                          })}
+                          style={{ marginRight: '0.5rem' }}
+                        />
+                        <span className="form-label" style={{ margin: 0 }}>Backchanneling</span>
+                      </label>
+
+                      <label style={{ display: 'flex', alignItems: 'center', cursor: 'pointer' }}>
+                        <input
+                          type="checkbox"
+                          checked={editForm.voice_settings.filler_words}
+                          onChange={(e) => setEditForm({
+                            ...editForm,
+                            voice_settings: {...editForm.voice_settings, filler_words: e.target.checked}
+                          })}
+                          style={{ marginRight: '0.5rem' }}
+                        />
+                        <span className="form-label" style={{ margin: 0 }}>Filler Words</span>
+                      </label>
+                    </div>
+                  </div>
+                )}
+
+                {/* Scenario Agent Info - Show for scenario agents */}
+                {editingAgent?.settings?.scenario_type && (
+                  <div style={{ 
+                    marginBottom: '1.5rem',
+                    padding: '1rem',
+                    background: '#f7fafc',
+                    borderRadius: '12px',
+                    border: '2px solid #e2e8f0'
+                  }}>
+                    <h3 style={{
+                      fontSize: '1.1rem',
+                      fontWeight: '600',
+                      color: '#2d3748',
+                      marginBottom: '0.5rem',
+                      display: 'flex',
+                      alignItems: 'center'
+                    }}>
+                      <span style={{ marginRight: '0.5rem' }}>🎯</span>
+                      Scenario Agent Configuration
+                    </h3>
+                    <p style={{
+                      color: '#718096',
+                      fontSize: '0.9rem',
+                      margin: 0,
+                      lineHeight: '1.5'
+                    }}>
+                      This is a pre-configured scenario agent. Voice settings are optimized for the {editingAgent.settings.scenario_type === 'dispatch_checkin' ? 'Dispatch Check-in' : 'Emergency Protocol'} scenario and cannot be modified.
+                    </p>
+                  </div>
+                )}
+
+                <div style={{ display: 'flex', gap: '1rem', justifyContent: 'flex-end' }}>
+                  <button
+                    type="button"
+                    onClick={handleCancelEdit}
+                    className="btn btn-secondary"
+                    style={{ padding: '0.75rem 1.5rem' }}
+                  >
+                    Cancel
+                  </button>
+                  <button
+                    type="submit"
+                    disabled={updatingAgent}
+                    className="btn btn-primary"
+                    style={{ padding: '0.75rem 1.5rem' }}
+                  >
+                    {updatingAgent ? (
+                      <>
+                        <span className="loading-spinner" style={{ marginRight: '0.5rem' }}></span>
+                        Updating...
+                      </>
+                    ) : (
+                      '💾 Update Agent'
+                    )}
+                  </button>
+                </div>
+              </form>
+            </div>
+          </div>
+        )}
       </div>
     </div>
   );

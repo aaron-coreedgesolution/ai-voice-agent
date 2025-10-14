@@ -3,6 +3,8 @@ from fastapi import APIRouter, HTTPException
 from pydantic import BaseModel
 from typing import Optional, Dict, Any
 from services.supabase_service import SupabaseService
+from services.retell_service import RetellService
+
 import uuid
 import os
 import logging
@@ -58,62 +60,41 @@ def get_call_records():
 
 
 @router.post("/start")
-def start_test_call(request: CallTriggerRequest):
+def start_web_call(request: CallTriggerRequest):
     """
-    Trigger a live or web-based call using Retell AI.
-    Falls back to a mock call if the API fails or RETELL_API_KEY is missing.
+    Start a web-based call using Retell AI and store it in Supabase.
     """
     try:
         driver_name = request.driver_name
         load_number = request.load_number
         phone_number = request.phone_number or "WEB_CALL"
 
-        if not driver_name or not load_number:
-            raise HTTPException(status_code=400, detail="Missing required fields")
+        logging.info(f"Starting Retell web call for {driver_name} / {load_number}")
 
-        # Fetch agent configuration if agent_id is provided
-        agent_config = {}
+        # 🔹 Step 1: Get agent configuration if agent_id is provided
+        agent_config = None
         if request.agent_id:
-            res = SupabaseService.get_agent_configs()
-            for cfg in res.data:
-                if cfg["id"] == request.agent_id:
-                    agent_config = cfg
-                    break
-
-        payload = {
-            "driver_name": driver_name,
-            "phone_number": phone_number,
-            "load_number": load_number,
-            "prompt": agent_config.get("prompt", ""),
-            "settings": agent_config.get("settings", {}),
-        }
-
-        call_response = None
-
-        # Try real Retell API call
-        if RETELL_API_KEY and requests:
-            headers = {
-                "Authorization": f"Bearer {RETELL_API_KEY}",
-                "Content-Type": "application/json"
-            }
             try:
-                response = requests.post(RETELL_API_URL, json=payload, headers=headers, timeout=5)
-                response.raise_for_status()
-                call_response = response.json()
-            except requests.exceptions.RequestException as e:
-                logging.error(f"Retell API failed, falling back to mock: {e}")
+                agents_response = SupabaseService.get_agent_configs()
+                for agent in agents_response.data:
+                    if agent["id"] == request.agent_id:
+                        agent_config = agent
+                        break
+            except Exception as e:
+                logging.warning(f"Could not fetch agent config: {e}")
 
-        # Fallback mock session
-        if not call_response:
-            mock_call_id = str(uuid.uuid4())
-            session_url = f"https://retell.ai/webcall/session/{mock_call_id}"
-            call_response = {
-                "mock_call_id": mock_call_id,
-                "status": "initiated",
-                "session_url": session_url
-            }
+        # 🔹 Step 2: Create Retell web call
+        retell_response = RetellService.create_web_call(driver_name, load_number, phone_number)
 
-        # Save initial 'Pending' call record
+        if "error" in retell_response:
+            logging.error(f"Retell service error: {retell_response}")
+            raise HTTPException(status_code=500, detail=retell_response["error"])
+
+        call_id = str(uuid.uuid4())
+        web_call_link = retell_response.get("web_call_link")
+        access_token = retell_response.get("access_token")
+
+        # 🔹 Step 3: Save initial call record in Supabase
         SupabaseService.insert_call_record(
             driver_name=driver_name,
             phone_number=phone_number,
@@ -123,12 +104,20 @@ def start_test_call(request: CallTriggerRequest):
             transcript="",
         )
 
-        return {"status": "success", "call": call_response}
+        return {
+            "status": "success",
+            "call_id": call_id,
+            "web_call_link": web_call_link,
+            "access_token": access_token,
+            "session_url": web_call_link,  # For compatibility with frontend
+            "call": {
+                "session_url": web_call_link,
+                "status": "initiated"
+            }
+        }
 
+    except HTTPException:
+        raise
     except Exception as e:
-        logging.error(f"Error in start_test_call: {e}")
-        # Always return mock call if anything fails
-        mock_call_id = str(uuid.uuid4())
-        session_url = f"https://retell.ai/webcall/session/{mock_call_id}"
-        call_response = {"mock_call_id": mock_call_id, "status": "initiated", "session_url": session_url}
-        return {"status": "success", "call": call_response, "error": str(e)}
+        logging.error(f"Error starting web call: {e}")
+        raise HTTPException(status_code=500, detail=f"Error starting web call: {str(e)}")
