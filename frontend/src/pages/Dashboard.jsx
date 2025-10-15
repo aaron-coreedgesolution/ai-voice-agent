@@ -1,10 +1,10 @@
 import { useEffect, useState } from "react";
 import api from "../api";
-import { updateAgent, createAgent } from "../api/agentApi";
+import { createAgent } from "../api/agentApi";
 import { toast, ToastContainer } from "react-toastify";
 import "react-toastify/dist/ReactToastify.css";
 import { RetellWebClient } from "retell-client-js-sdk";
-import "./Dashboard.css";
+// legacy styles removed; using global App.css classes
 
 export default function Dashboard() {
   const [agents, setAgents] = useState([]);
@@ -15,31 +15,11 @@ export default function Dashboard() {
   const [startingCall, setStartingCall] = useState(false);
   const [activeCall, setActiveCall] = useState(null); // Track active call
   const [retellClient, setRetellClient] = useState(null); // Store client instance
+  const [expandedCallId, setExpandedCallId] = useState(null);
   
-  // Agent editing state
-  const [editingAgent, setEditingAgent] = useState(null);
-  const [editForm, setEditForm] = useState({
-    name: "",
-    description: "",
-    prompt: "",
-    voice_settings: {
-      voice_id: "11labs-Adrian",
-      language: "en",
-      backchanneling: true,
-      filler_words: true,
-      interruption_sensitivity: 0.7,
-      response_delay: 0.8
-    }
-  });
-  const [updatingAgent, setUpdatingAgent] = useState(false);
+  // Edit functionality removed
 
-  // Scenario agent creation state
-  const [scenarioAgent, setScenarioAgent] = useState({
-    scenario_type: "",
-    driver_name: "",
-    load_number: "",
-  });
-  const [creatingScenarioAgent, setCreatingScenarioAgent] = useState(false);
+  // Scenario agent creation removed
 
   // Manual test call form
   const [driverName, setDriverName] = useState("");
@@ -47,13 +27,7 @@ export default function Dashboard() {
   const [loadNumber, setLoadNumber] = useState("");
   const [selectedAgentId, setSelectedAgentId] = useState("");
 
-  // Custom agent creation form
-  const [customAgent, setCustomAgent] = useState({
-    name: "",
-    description: "",
-    prompt: ""
-  });
-  const [creatingCustomAgent, setCreatingCustomAgent] = useState(false);
+  // Custom agent creation moved to dedicated page
 
   useEffect(() => {
     const fetchData = async () => {
@@ -74,74 +48,65 @@ export default function Dashboard() {
     fetchData();
   }, []);
 
+  // Inline styles aligned with CallRecords.jsx aesthetic
+  const styles = {
+    container: { minHeight: '100vh', background: 'linear-gradient(135deg, #667eea 0%, #764ba2 100%)' },
+    content: { maxWidth: '1400px', margin: '0 auto', padding: '2rem', background: 'rgba(255, 255, 255, 0.95)', backdropFilter: 'blur(10px)', minHeight: '100vh' },
+    header: { textAlign: 'center', marginBottom: '3rem', padding: '3rem 2rem', background: 'linear-gradient(135deg, #667eea 0%, #764ba2 100%)', borderRadius: '24px', color: 'white', boxShadow: '0 20px 40px rgba(0,0,0,0.15)', position: 'relative', overflow: 'hidden' },
+    headerPattern: { position: 'absolute', top: 0, left: 0, right: 0, bottom: 0, background: 'url("data:image/svg+xml,%3Csvg width=\"60\" height=\"60\" viewBox=\"0 0 60 60\" xmlns=\"http://www.w3.org/2000/svg\"%3E%3Cg fill=\"none\" fill-rule=\"evenodd\"%3E%3Cg fill=\"%23ffffff\" fill-opacity=\"0.05\"%3E%3Ccircle cx=\"30\" cy=\"30\" r=\"2\"/%3E%3C/g%3E%3C/g%3E%3C/svg%3E")', opacity: 0.3 },
+    title: { fontSize: '3rem', fontWeight: 900, margin: '0 0 1rem 0', textShadow: '2px 2px 4px rgba(0,0,0,0.3)', position: 'relative', zIndex: 1 },
+    subtitle: { fontSize: '1.2rem', opacity: 0.95, fontWeight: 300, position: 'relative', zIndex: 1 },
+    grid: { display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(350px, 1fr))', gap: '2rem', marginBottom: '2rem' },
+    card: { background: '#ffffff', borderRadius: '20px', padding: '2rem', boxShadow: '0 15px 35px rgba(0,0,0,0.08)', border: '1px solid rgba(0,0,0,0.06)' },
+    sectionTitle: { fontSize: '1.5rem', fontWeight: 700, color: '#2d3748', marginBottom: '1rem', display: 'flex', alignItems: 'center', gap: '0.5rem', paddingBottom: '0.75rem', borderBottom: '3px solid #f7fafc' },
+    formGroup: { marginBottom: '1rem' },
+    label: { display: 'block', fontSize: '0.9rem', fontWeight: 600, color: '#4a5568', marginBottom: '0.5rem' },
+    input: { width: '100%', padding: '0.75rem', border: '2px solid #e2e8f0', borderRadius: '10px', fontSize: '1rem', background: '#ffffff' },
+    select: { width: '100%', padding: '0.75rem', border: '2px solid #e2e8f0', borderRadius: '10px', fontSize: '1rem', background: '#ffffff' },
+    primaryBtn: { padding: '0.875rem 1rem', background: 'linear-gradient(135deg, #667eea 0%, #764ba2 100%)', color: '#fff', border: 'none', borderRadius: '10px', fontWeight: 700, cursor: 'pointer' },
+    secondaryBtn: { padding: '0.875rem 1rem', background: 'linear-gradient(135deg, #4ecdc4 0%, #44a08d 100%)', color: '#fff', border: 'none', borderRadius: '10px', fontWeight: 700, cursor: 'pointer' },
+    tableWrap: { background: '#ffffff', borderRadius: '20px', padding: '1.5rem', boxShadow: '0 15px 35px rgba(0,0,0,0.08)', border: '1px solid rgba(0,0,0,0.06)' },
+    tableHeader: { display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: '1rem' }
+  };
+
   // --- End Active Call ---
-  const handleEndCall = () => {
-    if (retellClient && activeCall) {
-      try {
-        retellClient.endCall();
-        setActiveCall(null);
-        setRetellClient(null);
-        toast.info("Call ended by user");
-      } catch (err) {
-        console.error("Error ending call:", err);
-        toast.error("Failed to end call");
+  const handleEndCall = async () => {
+    if (!retellClient) {
+      setActiveCall(null);
+      return;
+    }
+    try {
+      if (typeof retellClient.endCall === 'function') {
+        await retellClient.endCall();
+      } else if (typeof retellClient.hangUp === 'function') {
+        await retellClient.hangUp();
+      } else if (typeof retellClient.stopCall === 'function') {
+        await retellClient.stopCall();
+      } else if (typeof retellClient.disconnect === 'function') {
+        await retellClient.disconnect();
       }
-    }
-  };
-
-  // --- Create Custom Agent ---
-  const handleCreateCustomAgent = async (e) => {
-    e.preventDefault();
-    setCreatingCustomAgent(true);
-    try {
-      const agentData = {
-        name: customAgent.name,
-        description: customAgent.description,
-        prompt: customAgent.prompt,
-        settings: {
-          advanced_settings: {
-            voice_id: "11labs-Adrian",
-            language: "en",
-            backchanneling: true,
-            filler_words: true,
-            interruption_sensitivity: 0.7,
-            response_delay: 0.8
-          }
+      toast.info("Call ended by user");
+    } catch (err) {
+      console.error("Error ending call:", err);
+      toast.error("Failed to end call");
+    } finally {
+      try {
+        if (typeof retellClient.removeAllListeners === 'function') {
+          retellClient.removeAllListeners();
         }
-      };
-
-      const res = await createAgent(agentData);
-      toast.success(`Custom agent "${customAgent.name}" created successfully!`);
-      setAgents((prev) => [...prev, res.data.data]);
-      setCustomAgent({
-        name: "",
-        description: "",
-        prompt: ""
-      });
-    } catch (err) {
-      console.error("Create custom agent error:", err);
-      toast.error("Failed to create custom agent.");
-    } finally {
-      setCreatingCustomAgent(false);
+      } catch {}
+      setActiveCall(null);
+      setRetellClient(null);
+      // Ensure records refresh shortly after end
+      setTimeout(() => {
+        refreshCallRecords();
+      }, 500);
     }
   };
 
-  // --- Create Scenario Agent ---
-  const handleCreateScenarioAgent = async (e) => {
-    e.preventDefault();
-    setCreatingScenarioAgent(true);
-    try {
-      const res = await api.post("/agents/scenario", scenarioAgent);
-      toast.success(`Scenario agent created successfully!`);
-      setAgents((prev) => [...prev, res.data.data]);
-      setScenarioAgent({ scenario_type: "", driver_name: "", load_number: "" });
-    } catch (err) {
-      console.error("Create scenario agent error:", err);
-      toast.error("Failed to create scenario agent.");
-    } finally {
-      setCreatingScenarioAgent(false);
-    }
-  };
+  // Custom agent creation handled on /agents/create
+
+  // Scenario creation removed
 
   // --- Start Manual Call ---
   const handleStartTestCall = async (e) => {
@@ -272,838 +237,168 @@ export default function Dashboard() {
     }
   };
 
-  // --- Agent Editing Functions ---
-  const handleEditAgent = (agent) => {
-    setEditingAgent(agent);
-    
-    const newForm = {
-      name: agent.name || "",
-      description: agent.description || "",
-      prompt: agent.prompt || "",
-      voice_settings: {
-        voice_id: agent.settings?.advanced_settings?.voice_id || "11labs-Adrian",
-        language: agent.settings?.advanced_settings?.language || "en",
-        backchanneling: agent.settings?.advanced_settings?.backchanneling ?? true,
-        filler_words: agent.settings?.advanced_settings?.filler_words ?? true,
-        interruption_sensitivity: agent.settings?.advanced_settings?.interruption_sensitivity ?? 0.7,
-        response_delay: agent.settings?.advanced_settings?.response_delay ?? 0.8
-      }
-    };
-    
-    setEditForm(newForm);
-  };
-
-  const handleUpdateAgent = async (e) => {
-    e.preventDefault();
-    setUpdatingAgent(true);
-    
-    try {
-      const updateData = {
-        name: editForm.name,
-        description: editForm.description,
-        prompt: editForm.prompt,
-        settings: {
-          ...editingAgent.settings,
-          advanced_settings: editForm.voice_settings
-        }
-      };
-
-      const res = await updateAgent(editingAgent.id, updateData);
-      toast.success("Agent updated successfully in both Retell AI and Supabase!");
-      
-      // Refresh agents list
-      const agentsRes = await api.get("/agents/");
-      setAgents(agentsRes.data?.data || []);
-      
-      // Close edit form
-      setEditingAgent(null);
-      setEditForm({
-        name: "",
-        description: "",
-        prompt: "",
-        voice_settings: {
-          voice_id: "11labs-Adrian",
-          language: "en",
-          backchanneling: true,
-          filler_words: true,
-          interruption_sensitivity: 0.7,
-          response_delay: 0.8
-        }
-      });
-    } catch (err) {
-      console.error("Update agent error:", err);
-      toast.error("Failed to update agent.");
-    } finally {
-      setUpdatingAgent(false);
-    }
-  };
-
-  const handleCancelEdit = () => {
-    setEditingAgent(null);
-    setEditForm({
-      name: "",
-      description: "",
-      prompt: "",
-      voice_settings: {
-        voice_id: "11labs-Adrian",
-        language: "en",
-        backchanneling: true,
-        filler_words: true,
-        interruption_sensitivity: 0.7,
-        response_delay: 0.8
-      }
-    });
-  };
+  // Edit functionality removed
 
   if (loading)
     return (
-      <div className="p-10 text-center text-xl text-indigo-600">
-        ⏳ Loading dashboard...
+      <div style={styles.container}>
+        <div style={{ textAlign: 'center', padding: '4rem', fontSize: '1.3rem', color: '#667eea', fontWeight: 500 }}>
+          <div style={{fontSize: '2rem', marginBottom: '1rem'}}>⏳</div>
+          Loading dashboard...
+        </div>
       </div>
     );
 
   if (error)
     return (
-      <div className="p-10 text-center text-red-500 text-xl">
-        ❌ {error}
+      <div style={styles.container}>
+        <div style={{ textAlign: 'center', padding: '4rem', fontSize: '1.3rem', color: '#f56565', fontWeight: 500 }}>
+          <div style={{fontSize: '2rem', marginBottom: '1rem'}}>❌</div>
+          {error}
+        </div>
       </div>
     );
 
   return (
-    <div className="dashboard-container">
+    <div style={styles.container}>
       <ToastContainer position="top-right" autoClose={3000} />
-      
-      <div className="dashboard-content">
-        
-        {/* Header Section */}
-        <div className="dashboard-header">
-          <div className="dashboard-logo">
-            <span style={{ fontSize: '2.5rem' }}>🎯</span>
-          </div>
-          <h1 className="dashboard-title">
-            AI Voice Agent Dashboard
-          </h1>
-          <p className="dashboard-subtitle">
-            Configure intelligent voice agents, conduct test calls, and analyze conversation results with ease
-          </p>
+      <div style={styles.content}>
+        <div style={styles.header}>
+          <div style={styles.headerPattern}></div>
+          <h1 style={styles.title}>🎯 AI Voice Agent Dashboard</h1>
+          <p style={styles.subtitle}>Configure agents, run test calls, and review results</p>
         </div>
 
-        {/* Active Call Status */}
-        {activeCall && (
-          <div className="active-call-banner">
-            <div className="active-call-content">
-              <div className="active-call-info">
-                <div className="active-call-indicator"></div>
-                <div>
-                  <h3 style={{ color: '#2d5016', fontWeight: '600', margin: '0 0 0.25rem 0' }}>
-                    📞 Active Call
-                  </h3>
-                  <p style={{ color: '#2d5016', margin: 0, fontSize: '0.9rem' }}>
-                    {activeCall.driver_name} • Load {activeCall.load_number}
-                  </p>
-                </div>
+      {/* Active Call Status */}
+      {activeCall && (
+        <div style={{ background: 'linear-gradient(135deg, rgba(72,187,120,0.2), rgba(56,161,105,0.2))', border: '2px solid rgba(72,187,120,0.3)', borderRadius: 16, padding: '1.25rem', marginBottom: '2rem' }}>
+          <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between' }}>
+            <div style={{ display: 'flex', alignItems: 'center', gap: '0.75rem' }}>
+              <span style={{ width: 10, height: 10, borderRadius: '50%', background: '#48bb78', display: 'inline-block' }} />
+              <div>
+                <h3 style={{ color: '#22543d', fontWeight: 700, margin: 0 }}>📞 Active Call</h3>
+                <p style={{ color: '#22543d', fontSize: 14, margin: 0 }}>{activeCall.driver_name} • Load {activeCall.load_number}</p>
               </div>
-              <button
-                onClick={handleEndCall}
-                className="btn btn-danger"
-                style={{ padding: '0.75rem 1.5rem', fontSize: '0.9rem' }}
-              >
-                End Call
-              </button>
             </div>
-          </div>
-        )}
-
-        {/* Main Content Grid */}
-        <div className="main-content-grid">
-          
-          {/* Create Custom Agent Section */}
-          <div className="dashboard-card">
-            <div className="section-header">
-              <div className="section-icon" style={{ background: 'linear-gradient(135deg, #ff6b6b, #ee5a52)' }}>
-                🤖
-              </div>
-              <h2 className="section-title">Create Custom Agent</h2>
-            </div>
-            
-            <form onSubmit={handleCreateCustomAgent}>
-              <div className="form-group">
-                <label className="form-label">Agent Name</label>
-                <input
-                  type="text"
-                  placeholder="Enter agent name"
-                  value={customAgent.name}
-                  onChange={(e) => setCustomAgent({...customAgent, name: e.target.value})}
-                  required
-                  className="modal-form-input"
-                />
-              </div>
-              
-              <div className="form-group">
-                <label className="form-label">Description</label>
-                <input
-                  type="text"
-                  placeholder="Enter agent description"
-                  value={customAgent.description}
-                  onChange={(e) => setCustomAgent({...customAgent, description: e.target.value})}
-                  className="modal-form-input"
-                />
-              </div>
-              
-              <div className="form-group">
-                <label className="form-label">Agent Prompt</label>
-                <textarea
-                  placeholder="Enter the agent's conversation prompt"
-                  value={customAgent.prompt}
-                  onChange={(e) => setCustomAgent({...customAgent, prompt: e.target.value})}
-                  required
-                  className="modal-form-textarea"
-                  rows="4"
-                  style={{ minHeight: '100px' }}
-                />
-              </div>
-
-              
-              <button
-                type="submit"
-                disabled={creatingCustomAgent}
-                className="btn btn-primary"
-                style={{ width: '100%' }}
-              >
-                {creatingCustomAgent ? (
-                  <>
-                    <span className="loading-spinner" style={{ marginRight: '0.5rem' }}></span>
-                    Creating...
-                  </>
-                ) : (
-                  '🤖 Create Custom Agent'
-                )}
-              </button>
-            </form>
-          </div>
-
-          {/* Agent Creation Section */}
-          <div className="dashboard-card">
-            <div className="section-header">
-              <div className="section-icon" style={{ background: 'linear-gradient(135deg, #667eea, #764ba2)' }}>
-                🎯
-              </div>
-              <h2 className="section-title">Create Scenario Agent</h2>
-            </div>
-            
-            <form onSubmit={handleCreateScenarioAgent}>
-              <div className="form-group">
-                <label className="form-label">Scenario Type</label>
-                <select
-                  value={scenarioAgent.scenario_type}
-                  onChange={(e) =>
-                    setScenarioAgent({ ...scenarioAgent, scenario_type: e.target.value })
-                  }
-                  required
-                  className="modal-form-select"
-                >
-                  <option value="">Select Scenario Type</option>
-                  <option value="dispatch_checkin">Dispatch Check-in Agent</option>
-                  <option value="emergency_protocol">Emergency Protocol Agent</option>
-                </select>
-              </div>
-              
-              <div className="form-group">
-                <label className="form-label">Driver Name (Optional)</label>
-                <input
-                  type="text"
-                  placeholder="Enter driver name for personalized prompts"
-                  value={scenarioAgent.driver_name}
-                  onChange={(e) =>
-                    setScenarioAgent({ ...scenarioAgent, driver_name: e.target.value })
-                  }
-                  className="modal-form-input"
-                />
-              </div>
-              
-              <div className="form-group">
-                <label className="form-label">Load Number (Optional)</label>
-                <input
-                  type="text"
-                  placeholder="Enter load number for context"
-                  value={scenarioAgent.load_number}
-                  onChange={(e) =>
-                    setScenarioAgent({ ...scenarioAgent, load_number: e.target.value })
-                  }
-                  className="modal-form-input"
-                />
-              </div>
-              
-              <button
-                type="submit"
-                disabled={creatingScenarioAgent}
-                className="btn btn-primary"
-                style={{ width: '100%' }}
-              >
-                {creatingScenarioAgent ? (
-                  <>
-                    <span className="loading-spinner" style={{ marginRight: '0.5rem' }}></span>
-                    Creating...
-                  </>
-                ) : (
-                  '🎯 Create Scenario Agent'
-                )}
-              </button>
-            </form>
-          </div>
-
-          {/* Manual Test Call Section */}
-          <div className="dashboard-card">
-            <div className="section-header">
-              <div className="section-icon" style={{ background: 'linear-gradient(135deg, #4ecdc4, #44a08d)' }}>
-                📞
-              </div>
-              <h2 className="section-title">Manual Test Call</h2>
-            </div>
-            
-            <form onSubmit={handleStartTestCall}>
-              <div className="form-group">
-                <label className="form-label">Select Agent (Optional)</label>
-                <select
-                  value={selectedAgentId}
-                  onChange={(e) => setSelectedAgentId(e.target.value)}
-                  className="modal-form-select"
-                >
-                  <option value="">Use Default Agent</option>
-                  {agents.map((agent) => (
-                    <option key={agent.id} value={agent.id}>
-                      {agent.name} {agent.settings?.scenario_type ? `(${agent.settings.scenario_type === 'dispatch_checkin' ? 'Dispatch Check-in' : 'Emergency Protocol'})` : '(Custom)'}
-                    </option>
-                  ))}
-                </select>
-              </div>
-
-              <div className="form-group">
-                <label className="form-label">Driver Name</label>
-                <input
-                  type="text"
-                  placeholder="Enter driver name"
-                  value={driverName}
-                  onChange={(e) => setDriverName(e.target.value)}
-                  required
-                  className="modal-form-input"
-                />
-              </div>
-              
-              <div className="form-group">
-                <label className="form-label">Phone Number</label>
-                <input
-                  type="text"
-                  placeholder="Enter phone number"
-                  value={phoneNumber}
-                  onChange={(e) => setPhoneNumber(e.target.value)}
-                  required
-                  className="modal-form-input"
-                />
-              </div>
-              
-              <div className="form-group">
-                <label className="form-label">Load Number</label>
-                <input
-                  type="text"
-                  placeholder="Enter load number"
-                  value={loadNumber}
-                  onChange={(e) => setLoadNumber(e.target.value)}
-                  required
-                  className="modal-form-input"
-                />
-              </div>
-              
-              <button
-                type="submit"
-                disabled={startingCall || activeCall}
-                className="btn btn-secondary"
-                style={{ width: '100%' }}
-              >
-                {startingCall ? (
-                  <>
-                    <span className="loading-spinner" style={{ marginRight: '0.5rem' }}></span>
-                    Starting...
-                  </>
-                ) : activeCall ? (
-                  'Call in Progress'
-                ) : (
-                  '🚀 Start Test Call'
-                )}
-              </button>
-            </form>
+            <button onClick={handleEndCall} style={{ ...styles.primaryBtn, background: 'linear-gradient(135deg, #f56565 0%, #e53e3e 100%)' }}>End Call</button>
           </div>
         </div>
+      )}
 
-        {/* Configured Agents Section */}
-        <div className="dashboard-card">
-          <div className="section-header">
-            <div className="section-icon" style={{ background: 'linear-gradient(135deg, #4ecdc4, #44a08d)' }}>
-              🤖
+      {/* Main Content Grid */}
+      <div style={styles.grid}>
+        <div style={styles.card}>
+          <h2 style={styles.sectionTitle}>📞 Manual Test Call</h2>
+          <form onSubmit={handleStartTestCall}>
+            <div style={styles.formGroup}>
+              <label style={styles.label}>Select Agent (Required)</label>
+              <select value={selectedAgentId} onChange={(e) => setSelectedAgentId(e.target.value)} required style={styles.select}>
+                <option value="" disabled>Select an agent...</option>
+                {agents.map((agent) => (
+                  <option key={agent.id} value={agent.id}>
+                    {agent.name} {agent.settings?.scenario_type ? `(${agent.settings.scenario_type === 'dispatch_checkin' ? 'Dispatch Check-in' : 'Emergency Protocol'})` : '(Custom)'}
+                  </option>
+                ))}
+              </select>
             </div>
-            <div className="section-title-container">
-              <h2 className="section-title">Configured Agents</h2>
-              <div className="agent-count">
-                {agents.length} agent{agents.length !== 1 ? 's' : ''}
-              </div>
+            <div style={styles.formGroup}>
+              <label style={styles.label}>Driver Name</label>
+              <input type="text" placeholder="Enter driver name" value={driverName} onChange={(e) => setDriverName(e.target.value)} required style={styles.input} />
             </div>
-          </div>
-          
-          {agents.length === 0 ? (
-            <div className="empty-state">
-              <div className="empty-state-icon">🤖</div>
-              <h3>No agents configured yet</h3>
-              <p>Create a scenario agent to get started with voice calls!</p>
+            <div style={styles.formGroup}>
+              <label style={styles.label}>Phone Number</label>
+              <input type="text" placeholder="Enter phone number" value={phoneNumber} onChange={(e) => setPhoneNumber(e.target.value)} required style={styles.input} />
             </div>
-          ) : (
-            <div className="agent-grid">
-              {agents.map((agent) => {
-                const scenarioType = agent.settings?.scenario_type;
-                const isScenarioAgent = !!scenarioType;
+            <div style={styles.formGroup}>
+              <label style={styles.label}>Load Number</label>
+              <input type="text" placeholder="Enter load number" value={loadNumber} onChange={(e) => setLoadNumber(e.target.value)} required style={styles.input} />
+            </div>
+            <button type="submit" disabled={startingCall || activeCall || !selectedAgentId} style={{ ...styles.secondaryBtn, width: '100%' }}>
+              {startingCall ? 'Starting...' : activeCall ? 'Call in Progress' : '🚀 Start Test Call'}
+            </button>
+          </form>
+        </div>
+      </div>
+
+      {/* Recent Calls - redesigned list, sorted latest first */}
+      <div style={styles.tableWrap}>
+        <div style={styles.tableHeader}>
+          <h2 style={{ fontSize: '1.5rem', fontWeight: 700, margin: 0, color: '#2d3748' }}>Recent Calls</h2>
+          <button onClick={refreshCallRecords} style={styles.secondaryBtn}>Refresh</button>
+        </div>
+        {calls.length === 0 ? (
+          <div style={{ textAlign: 'center', color: '#64748b', padding: '2rem' }}>No calls yet</div>
+        ) : (
+          <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(320px, 1fr))', gap: '1rem' }}>
+            {[...calls]
+              .sort((a, b) => {
+                const ad = a.created_at ? new Date(a.created_at).getTime() : 0;
+                const bd = b.created_at ? new Date(b.created_at).getTime() : 0;
+                return bd - ad;
+              })
+              .map((call) => {
+                const outcome = call.call_outcome || 'Pending';
+                const badgeStyle = outcome === 'Completed' || outcome === 'In-Transit Update' || outcome === 'Arrival Confirmation'
+                  ? { background: '#dcfce7', color: '#166534' }
+                  : outcome === 'Emergency Escalation'
+                  ? { background: '#fee2e2', color: '#991b1b' }
+                  : outcome === 'Pending'
+                  ? { background: '#fef9c3', color: '#854d0e' }
+                  : { background: '#e2e8f0', color: '#334155' };
+                const created = call.created_at ? new Date(call.created_at).toLocaleString() : '';
+                const transcriptPreview = (call.transcript || '').slice(0, 160);
                 return (
-                  <div
-                    key={agent.id}
-                    className={`agent-card ${isScenarioAgent ? 'scenario' : ''}`}
-                  >
-                    <div className="agent-header">
-                      <h3 className="agent-name">{agent.name}</h3>
-                      {isScenarioAgent && (
-                        <span className="agent-badge">SCENARIO</span>
-                      )}
+                  <div key={call.id} style={{ border: '1px solid #e2e8f0', borderRadius: 12, padding: '1rem', background: '#fff' }}>
+                    <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', marginBottom: '0.5rem' }}>
+                      <div>
+                        <div style={{ fontWeight: 700, color: '#111827' }}>{call.driver_name || 'Unknown Driver'}</div>
+                        <div style={{ color: '#64748b', fontSize: 13 }}>{call.phone_number || 'Unknown'} • Load {call.load_number || 'N/A'}</div>
+                        {created && <div style={{ color: '#94a3b8', fontSize: 12, marginTop: 4 }}>{created}</div>}
+                      </div>
+                      <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
+                        <span style={{ ...badgeStyle, padding: '4px 8px', borderRadius: 999, fontSize: 12, fontWeight: 700 }}>{outcome}</span>
+                        <button onClick={() => setExpandedCallId(expandedCallId === call.id ? null : call.id)} style={{ width: 32, height: 32, borderRadius: 8, border: '1px solid #e2e8f0', background: '#f8fafc', cursor: 'pointer', color: '#475569', fontWeight: 700 }} aria-label="Toggle details">
+                          {expandedCallId === call.id ? '▾' : '▸'}
+                        </button>
+                      </div>
                     </div>
-                    <p className="agent-description">{agent.description}</p>
-                    <p className="agent-type">
-                      Type: {isScenarioAgent 
-                        ? (scenarioType === 'dispatch_checkin' ? 'Dispatch Check-in' : 'Emergency Protocol')
-                        : 'Custom'
-                      }
-                    </p>
-                    <div style={{ display: 'flex', gap: '0.5rem', width: '100%' }}>
-                      <button
-                        onClick={() => handleEditAgent(agent)}
-                        className="btn btn-secondary"
-                        style={{ flex: 1, padding: '0.75rem', fontSize: '0.9rem' }}
-                      >
-                        ✏️ Edit
-                      </button>
-                      <button
-                        onClick={() => handleStartWebCall(agent.id)}
-                        disabled={startingCall || activeCall}
-                        className={`btn ${isScenarioAgent ? 'btn-primary' : 'btn-secondary'}`}
-                        style={{ flex: 1, padding: '0.75rem' }}
-                      >
-                        {startingCall ? (
-                          <>
-                            <span className="loading-spinner" style={{ marginRight: '0.5rem' }}></span>
-                            Starting...
-                          </>
-                        ) : activeCall ? (
-                          'Busy'
-                        ) : (
-                          'Start Call'
-                        )}
-                      </button>
-                    </div>
+                    {transcriptPreview && (
+                      <div style={{ color: '#334155', fontSize: 13, background: '#f8fafc', border: '1px solid #e2e8f0', borderRadius: 8, padding: '8px' }}>
+                        {transcriptPreview}{(call.transcript || '').length > 160 ? '…' : ''}
+                      </div>
+                    )}
+                    {call.structured_data && (
+                      <div style={{ marginTop: '8px', color: '#64748b', fontSize: 12 }}>
+                        retell_call_id: {call.structured_data.retell_call_id || '—'}
+                      </div>
+                    )}
+                    {expandedCallId === call.id && (
+                      <div style={{ marginTop: '12px' }}>
+                        <div style={{ marginBottom: 12, display: 'flex', gap: 8, flexWrap: 'wrap' }}>
+                          {call.structured_data?.recording_url && (
+                            <a href={call.structured_data.recording_url} target="_blank" rel="noreferrer" style={{ padding: '6px 10px', borderRadius: 999, background: '#eef2ff', color: '#3730a3', fontSize: 12, fontWeight: 700, textDecoration: 'none' }}>Recording</a>
+                          )}
+                        </div>
+                        <div style={{ marginBottom: 12 }}>
+                          <div style={{ fontWeight: 700, color: '#0f172a', marginBottom: 6 }}>Transcript</div>
+                          <div style={{ whiteSpace: 'pre-wrap', background: '#f8fafc', border: '1px solid #e2e8f0', borderRadius: 8, padding: 12, color: '#334155', fontSize: 14 }}>
+                            {call.transcript || 'No transcript available.'}
+                          </div>
+                        </div>
+                        <div>
+                          <div style={{ fontWeight: 700, color: '#0f172a', marginBottom: 6 }}>Structured Data</div>
+                          <div style={{ background: '#0f172a', color: '#e2e8f0', borderRadius: 8, padding: 12, fontFamily: 'ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, "Liberation Mono", "Courier New", monospace', fontSize: 12, overflowX: 'auto' }}>
+                            <pre style={{ margin: 0 }}>{JSON.stringify(call.structured_data || {}, null, 2)}</pre>
+                          </div>
+                        </div>
+                      </div>
+                    )}
                   </div>
                 );
               })}
-            </div>
-          )}
-        </div>
-
-        {/* Call Records Section */}
-        <div className="dashboard-card call-records">
-          <div className="section-header">
-            <div className="section-icon" style={{ background: 'linear-gradient(135deg, #ff6b6b, #ee5a52)' }}>
-              📊
-            </div>
-            <div className="section-title-container">
-              <h2 className="section-title">Recent Calls</h2>
-              <button
-                onClick={refreshCallRecords}
-                className="btn refresh-btn"
-              >
-                🔄 Refresh
-              </button>
-            </div>
-          </div>
-          
-          {calls.length === 0 ? (
-            <div className="empty-state">
-              <div className="empty-state-icon">📞</div>
-              <h3>No calls yet</h3>
-              <p>Start a test call to see results here!</p>
-            </div>
-          ) : (
-            <div>
-              {calls.map((call) => (
-                <div
-                  key={call.id}
-                  className="call-item"
-                  onClick={() => setExpandedCall(expandedCall === call.id ? null : call.id)}
-                >
-                  <div className="call-header">
-                    <div style={{ display: 'flex', alignItems: 'center' }}>
-                      <div className="call-avatar">
-                        {call.driver_name?.charAt(0) || "?"}
-                      </div>
-                      <div className="call-info">
-                        <h3>{call.driver_name}</h3>
-                        <p>{call.phone_number} • Load {call.load_number}</p>
-                      </div>
-                    </div>
-                    <div style={{ display: 'flex', alignItems: 'center', gap: '1rem' }}>
-                      <span className={`status-badge ${
-                        call.call_outcome === "Completed" || call.call_outcome === "In-Transit Update" || call.call_outcome === "Arrival Confirmation"
-                          ? "status-completed"
-                          : call.call_outcome === "Emergency Escalation"
-                          ? "status-emergency"
-                          : call.call_outcome === "Pending"
-                          ? "status-pending"
-                          : "status-failed"
-                      }`}>
-                        {call.call_outcome || "Pending"}
-                      </span>
-                      <div style={{ 
-                        width: '32px', 
-                        height: '32px', 
-                        background: '#f1f5f9', 
-                        borderRadius: '8px', 
-                        display: 'flex', 
-                        alignItems: 'center', 
-                        justifyContent: 'center',
-                        cursor: 'pointer',
-                        transition: 'all 0.2s ease'
-                      }}>
-                        <span style={{ color: '#718096', fontSize: '0.8rem' }}>
-                          {expandedCall === call.id ? "▼" : "▶"}
-                        </span>
-                      </div>
-                    </div>
-                  </div>
-                  
-                  {/* Expanded Call Details */}
-                  {expandedCall === call.id && (
-                    <div className="expandable-content">
-                      {/* Transcript */}
-                      {call.transcript && (
-                        <div className="transcript-section">
-                          <h4 style={{ 
-                            fontWeight: '600', 
-                            color: '#2d3748', 
-                            marginBottom: '0.75rem',
-                            display: 'flex',
-                            alignItems: 'center'
-                          }}>
-                            <span style={{ marginRight: '0.5rem' }}>📝</span>
-                            Call Transcript
-                          </h4>
-                          <div className="transcript-content">
-                            {call.transcript}
-                          </div>
-                        </div>
-                      )}
-                      
-                      {/* Structured Data */}
-                      {call.structured_data && Object.keys(call.structured_data).length > 0 && (
-                        <div>
-                          <h4 style={{ 
-                            fontWeight: '600', 
-                            color: '#2d3748', 
-                            marginBottom: '0.75rem',
-                            display: 'flex',
-                            alignItems: 'center'
-                          }}>
-                            <span style={{ marginRight: '0.5rem' }}>📊</span>
-                            Structured Data
-                          </h4>
-                          <div className="structured-data">
-                            <pre>{JSON.stringify(call.structured_data, null, 2)}</pre>
-                          </div>
-                        </div>
-                      )}
-                    </div>
-                  )}
-                </div>
-              ))}
-            </div>
-          )}
-        </div>
-
-        {/* Agent Edit Modal */}
-        {editingAgent && (
-          <div style={{
-            position: 'fixed',
-            top: 0,
-            left: 0,
-            right: 0,
-            bottom: 0,
-            background: 'rgba(0, 0, 0, 0.5)',
-            display: 'flex',
-            alignItems: 'center',
-            justifyContent: 'center',
-            zIndex: 1000,
-            padding: '1rem'
-          }}>
-            <div style={{
-              background: 'white',
-              borderRadius: '20px',
-              padding: '2rem',
-              maxWidth: '600px',
-              width: '100%',
-              maxHeight: '90vh',
-              overflowY: 'auto',
-              boxShadow: '0 25px 50px rgba(0, 0, 0, 0.25)'
-            }}>
-              <div style={{
-                display: 'flex',
-                alignItems: 'center',
-                justifyContent: 'space-between',
-                marginBottom: '2rem',
-                paddingBottom: '1rem',
-                borderBottom: '2px solid #e2e8f0'
-              }}>
-                <h2 style={{
-                  fontSize: '1.5rem',
-                  fontWeight: '700',
-                  color: '#2d3748',
-                  margin: 0,
-                  display: 'flex',
-                  alignItems: 'center'
-                }}>
-                  <span style={{ marginRight: '0.5rem' }}>✏️</span>
-                  Edit Agent: {editingAgent.name}
-                </h2>
-                <button
-                  onClick={handleCancelEdit}
-                  style={{
-                    background: 'none',
-                    border: 'none',
-                    fontSize: '1.5rem',
-                    cursor: 'pointer',
-                    color: '#718096',
-                    padding: '0.5rem'
-                  }}
-                >
-                  ✕
-                </button>
-              </div>
-
-              <form onSubmit={handleUpdateAgent}>
-                <div className="form-group">
-                  <label className="form-label">Agent Name</label>
-                  <input
-                    type="text"
-                    value={editForm.name}
-                    onChange={(e) => setEditForm({...editForm, name: e.target.value})}
-                    required
-                    className="modal-form-input"
-                    placeholder="Enter agent name"
-                  />
-                </div>
-
-                <div className="form-group">
-                  <label className="form-label">Description</label>
-                  <input
-                    type="text"
-                    value={editForm.description}
-                    onChange={(e) => setEditForm({...editForm, description: e.target.value})}
-                    className="modal-form-input"
-                    placeholder="Enter agent description"
-                  />
-                </div>
-
-                <div className="form-group">
-                  <label className="form-label">Agent Prompt</label>
-                  <textarea
-                    value={editForm.prompt}
-                    onChange={(e) => setEditForm({...editForm, prompt: e.target.value})}
-                    required
-                    className="modal-form-textarea"
-                    placeholder="Enter the agent's conversation prompt"
-                    rows="6"
-                    style={{ minHeight: '120px' }}
-                  />
-                </div>
-
-                {/* Voice Settings - Only show for custom agents, not scenario agents */}
-                {!editingAgent?.settings?.scenario_type && (
-                  <div style={{ marginBottom: '1.5rem' }}>
-                    <h3 style={{
-                      fontSize: '1.1rem',
-                      fontWeight: '600',
-                      color: '#2d3748',
-                      marginBottom: '1rem'
-                    }}>
-                      Voice Settings
-                    </h3>
-                    
-                    <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '1rem' }}>
-                      <div className="form-group">
-                        <label className="form-label">Voice ID</label>
-                        <select
-                          value={editForm.voice_settings.voice_id}
-                          onChange={(e) => setEditForm({
-                            ...editForm,
-                            voice_settings: {...editForm.voice_settings, voice_id: e.target.value}
-                          })}
-                          className="modal-form-select"
-                        >
-                          <option value="11labs-Adrian">Adrian (Male)</option>
-                          <option value="11labs-Sarah">Sarah (Female)</option>
-                          <option value="11labs-Michael">Michael (Male)</option>
-                          <option value="11labs-Emma">Emma (Female)</option>
-                        </select>
-                      </div>
-
-                      <div className="form-group">
-                        <label className="form-label">Language</label>
-                        <select
-                          value={editForm.voice_settings.language}
-                          onChange={(e) => setEditForm({
-                            ...editForm,
-                            voice_settings: {...editForm.voice_settings, language: e.target.value}
-                          })}
-                          className="modal-form-select"
-                        >
-                          <option value="en">English</option>
-                          <option value="es">Spanish</option>
-                          <option value="fr">French</option>
-                          <option value="de">German</option>
-                        </select>
-                      </div>
-                    </div>
-
-                    <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '1rem', marginTop: '1rem' }}>
-                      <div className="form-group">
-                        <label className="form-label">Interruption Sensitivity</label>
-                        <input
-                          type="range"
-                          min="0"
-                          max="1"
-                          step="0.1"
-                          value={editForm.voice_settings.interruption_sensitivity}
-                          onChange={(e) => setEditForm({
-                            ...editForm,
-                            voice_settings: {...editForm.voice_settings, interruption_sensitivity: parseFloat(e.target.value)}
-                          })}
-                          className="modal-form-input"
-                        />
-                        <div style={{ fontSize: '0.8rem', color: '#718096', textAlign: 'center' }}>
-                          {editForm.voice_settings.interruption_sensitivity}
-                        </div>
-                      </div>
-
-                      <div className="form-group">
-                        <label className="form-label">Response Delay (seconds)</label>
-                        <input
-                          type="range"
-                          min="0"
-                          max="2"
-                          step="0.1"
-                          value={editForm.voice_settings.response_delay}
-                          onChange={(e) => setEditForm({
-                            ...editForm,
-                            voice_settings: {...editForm.voice_settings, response_delay: parseFloat(e.target.value)}
-                          })}
-                          className="modal-form-input"
-                        />
-                        <div style={{ fontSize: '0.8rem', color: '#718096', textAlign: 'center' }}>
-                          {editForm.voice_settings.response_delay}s
-                        </div>
-                      </div>
-                    </div>
-
-                    <div style={{ display: 'flex', gap: '1rem', marginTop: '1rem' }}>
-                      <label style={{ display: 'flex', alignItems: 'center', cursor: 'pointer' }}>
-                        <input
-                          type="checkbox"
-                          checked={editForm.voice_settings.backchanneling}
-                          onChange={(e) => setEditForm({
-                            ...editForm,
-                            voice_settings: {...editForm.voice_settings, backchanneling: e.target.checked}
-                          })}
-                          style={{ marginRight: '0.5rem' }}
-                        />
-                        <span className="form-label" style={{ margin: 0 }}>Backchanneling</span>
-                      </label>
-
-                      <label style={{ display: 'flex', alignItems: 'center', cursor: 'pointer' }}>
-                        <input
-                          type="checkbox"
-                          checked={editForm.voice_settings.filler_words}
-                          onChange={(e) => setEditForm({
-                            ...editForm,
-                            voice_settings: {...editForm.voice_settings, filler_words: e.target.checked}
-                          })}
-                          style={{ marginRight: '0.5rem' }}
-                        />
-                        <span className="form-label" style={{ margin: 0 }}>Filler Words</span>
-                      </label>
-                    </div>
-                  </div>
-                )}
-
-                {/* Scenario Agent Info - Show for scenario agents */}
-                {editingAgent?.settings?.scenario_type && (
-                  <div style={{ 
-                    marginBottom: '1.5rem',
-                    padding: '1rem',
-                    background: '#f7fafc',
-                    borderRadius: '12px',
-                    border: '2px solid #e2e8f0'
-                  }}>
-                    <h3 style={{
-                      fontSize: '1.1rem',
-                      fontWeight: '600',
-                      color: '#2d3748',
-                      marginBottom: '0.5rem',
-                      display: 'flex',
-                      alignItems: 'center'
-                    }}>
-                      <span style={{ marginRight: '0.5rem' }}>🎯</span>
-                      Scenario Agent Configuration
-                    </h3>
-                    <p style={{
-                      color: '#718096',
-                      fontSize: '0.9rem',
-                      margin: 0,
-                      lineHeight: '1.5'
-                    }}>
-                      This is a pre-configured scenario agent. Voice settings are optimized for the {editingAgent.settings.scenario_type === 'dispatch_checkin' ? 'Dispatch Check-in' : 'Emergency Protocol'} scenario and cannot be modified.
-                    </p>
-                  </div>
-                )}
-
-                <div style={{ display: 'flex', gap: '1rem', justifyContent: 'flex-end' }}>
-                  <button
-                    type="button"
-                    onClick={handleCancelEdit}
-                    className="btn btn-secondary"
-                    style={{ padding: '0.75rem 1.5rem' }}
-                  >
-                    Cancel
-                  </button>
-                  <button
-                    type="submit"
-                    disabled={updatingAgent}
-                    className="btn btn-primary"
-                    style={{ padding: '0.75rem 1.5rem' }}
-                  >
-                    {updatingAgent ? (
-                      <>
-                        <span className="loading-spinner" style={{ marginRight: '0.5rem' }}></span>
-                        Updating...
-                      </>
-                    ) : (
-                      '💾 Update Agent'
-                    )}
-                  </button>
-                </div>
-              </form>
-            </div>
           </div>
         )}
+      </div>
       </div>
     </div>
   );
