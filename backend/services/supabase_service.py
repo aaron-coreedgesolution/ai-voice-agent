@@ -99,3 +99,29 @@ class SupabaseService:
     @staticmethod
     def update_call_record(call_id, updated_fields):
         return supabase.table("call_records").update(updated_fields).eq("id", call_id).execute()
+
+    @staticmethod
+    def find_latest_pending_by_identity(driver_name: str, phone_number: str, load_number: str):
+        """Find the most recent Pending call record for the same identity tuple.
+        Assumes a created_at column exists. Falls back to first match if ordering unsupported.
+        """
+        resp = supabase.table("call_records").select("*").eq("driver_name", driver_name).eq("phone_number", phone_number).eq("load_number", load_number).eq("call_outcome", "Pending").execute()
+        try:
+            rows = resp.data or []
+            if not rows:
+                return None
+            # Sort by created_at if available
+            rows.sort(key=lambda r: r.get("created_at", ""))
+            return rows[-1]
+        except Exception:
+            return None
+
+    @staticmethod
+    def find_by_retell_call_id(retell_call_id: str):
+        """Find a call record by structured_data.retell_call_id using JSON contains."""
+        try:
+            resp = supabase.table("call_records").select("*").contains("structured_data", {"retell_call_id": retell_call_id}).execute()
+            rows = resp.data or []
+            return rows[0] if rows else None
+        except Exception:
+            return None

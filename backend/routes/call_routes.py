@@ -40,17 +40,18 @@ class CallTriggerRequest(BaseModel):
 
 # --- Routes ---
 
-@router.post("/")
-def create_call_record(call: CallRecordCreate):
-    response = SupabaseService.insert_call_record(
-        call.driver_name,
-        call.phone_number,
-        call.load_number,
-        call.call_outcome,
-        call.structured_data,
-        call.transcript,
-    )
-    return {"message": "Call record saved successfully", "data": response.data}
+# @router.post("/")
+# def create_call_record(call: CallRecordCreate):
+#     # REMOVED: Only webhook should create call records
+#     # response = SupabaseService.insert_call_record(
+#     #     call.driver_name,
+#     #     call.phone_number,
+#     #     call.load_number,
+#     #     call.call_outcome,
+#     #     call.structured_data,
+#     #     call.transcript,
+#     # )
+#     # return {"message": "Call record saved successfully", "data": response.data}
 
 
 @router.get("/")
@@ -71,20 +72,30 @@ def start_web_call(request: CallTriggerRequest):
 
         logging.info(f"Starting Retell web call for {driver_name} / {load_number}")
 
-        # 🔹 Step 1: Get agent configuration if agent_id is provided
-        agent_config = None
-        if request.agent_id:
-            try:
-                agents_response = SupabaseService.get_agent_configs()
-                for agent in agents_response.data:
-                    if agent["id"] == request.agent_id:
-                        agent_config = agent
-                        break
-            except Exception as e:
-                logging.warning(f"Could not fetch agent config: {e}")
+        # 🔹 Step 1: Require an agent selection and resolve its Retell agent id from DB
+        if not request.agent_id:
+            raise HTTPException(status_code=400, detail="Please select an agent to start a call.")
 
-        # 🔹 Step 2: Create Retell web call
-        retell_response = RetellService.create_web_call(driver_name, load_number, phone_number)
+        agent_config = None
+        try:
+            agents_response = SupabaseService.get_agent_configs()
+            for agent in agents_response.data:
+                # Normalize types to avoid int/str mismatch between DB and request
+                if str(agent.get("id")) == str(request.agent_id):
+                    agent_config = agent
+                    break
+        except Exception as e:
+            logging.warning(f"Could not fetch agent config: {e}")
+
+        if not agent_config:
+            raise HTTPException(status_code=404, detail="Selected agent not found")
+
+        retell_agent_id = agent_config.get("settings", {}).get("retell_agent_id")
+        if not retell_agent_id:
+            raise HTTPException(status_code=400, detail="Selected agent is missing Retell agent id. Please recreate the agent or update its settings.")
+
+        # 🔹 Step 2: Create Retell web call with resolved retell_agent_id
+        retell_response = RetellService.create_web_call(driver_name, load_number, phone_number, agent_id=retell_agent_id)
 
         if "error" in retell_response:
             logging.error(f"Retell service error: {retell_response}")
@@ -93,16 +104,10 @@ def start_web_call(request: CallTriggerRequest):
         call_id = str(uuid.uuid4())
         web_call_link = retell_response.get("web_call_link")
         access_token = retell_response.get("access_token")
+        retell_call_id = retell_response.get("call_id")
 
-        # 🔹 Step 3: Save initial call record in Supabase
-        SupabaseService.insert_call_record(
-            driver_name=driver_name,
-            phone_number=phone_number,
-            load_number=load_number,
-            call_outcome="Pending",
-            structured_data={},
-            transcript="",
-        )
+        # 🔹 Step 3: No database record created here - only webhook will save data
+        # The webhook will handle all call record creation and updates
 
         return {
             "status": "success",

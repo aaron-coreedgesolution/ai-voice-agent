@@ -94,30 +94,49 @@ def _parse_dispatch_transcript(transcript: str) -> dict:
     return _call_openai_api(prompt)
 
 def _parse_generic_transcript(transcript: str) -> dict:
-    """Parse generic transcript with all possible fields"""
+    """Parse generic transcript with comprehensive structured data extraction"""
     prompt = f"""
-    You are a logistics call analyzer. Extract structured fields from the call transcript below.
+    You are an advanced logistics call analyzer. Extract comprehensive structured data from the call transcript below.
 
     --- TRANSCRIPT ---
     {transcript}
     --- END ---
 
-    Output JSON only with these possible fields (fill missing with null or 'N/A'):
+    Analyze the transcript and extract the following information. Return ONLY valid JSON with these fields:
+
     {{
-      "call_outcome": "In-Transit Update" | "Arrival Confirmation" | "Emergency Escalation" | "General Update",
-      "driver_status": "Driving" | "Delayed" | "Arrived" | "Unloading" | "N/A",
-      "current_location": string,
-      "eta": string,
-      "delay_reason": string,
-      "unloading_status": string,
+      "call_outcome": "In-Transit Update" | "Arrival Confirmation" | "Emergency Escalation" | "General Update" | "Dispatch Check-in" | "Status Update",
+      "driver_status": "Driving" | "Delayed" | "Arrived" | "Unloading" | "Loading" | "Stopped" | "N/A",
+      "current_location": "string (specific location, highway, mile marker, city)",
+      "eta": "string (estimated arrival time or duration)",
+      "delay_reason": "string (traffic, weather, mechanical, detention, other)",
+      "unloading_status": "string (door number, waiting for lumper, detention time, etc.)",
       "pod_reminder_acknowledged": true | false | null,
-      "emergency_type": "Accident" | "Breakdown" | "Medical" | "Other" | null,
-      "safety_status": string | null,
-      "injury_status": string | null,
-      "emergency_location": string | null,
+      "emergency_type": "Accident" | "Breakdown" | "Medical" | "Weather" | "Other" | null,
+      "safety_status": "string (driver safety confirmation)",
+      "injury_status": "string (any injuries reported)",
+      "emergency_location": "string (specific emergency location)",
       "load_secure": true | false | null,
-      "escalation_status": string | null
+      "escalation_status": "string (escalation actions taken)",
+      "driver_sentiment": "Positive" | "Neutral" | "Negative" | "Frustrated" | "Cooperative",
+      "call_quality": "Clear" | "Unclear" | "Noisy" | "Poor Connection",
+      "key_issues": ["array of strings (main issues discussed)"],
+      "action_items": ["array of strings (follow-up actions needed)"],
+      "next_steps": "string (recommended next actions)",
+      "confidence_score": "number (0-1, how confident in the extracted data)",
+      "business_impact": "Low" | "Medium" | "High" | "Critical",
+      "compliance_notes": "string (any compliance or safety concerns)",
+      "equipment_status": "string (truck, trailer, equipment condition)",
+      "weather_conditions": "string (weather impact on delivery)",
+      "traffic_conditions": "string (traffic impact on delivery)"
     }}
+
+    IMPORTANT: 
+    - Extract specific, actionable information
+    - Use null for truly unknown/missing data
+    - Be precise with locations, times, and statuses
+    - Identify any business-critical issues
+    - Assess the overall quality and sentiment of the call
     """
     return _call_openai_api(prompt)
 
@@ -126,14 +145,17 @@ def _call_openai_api(prompt: str) -> dict:
     client = get_openai_client()
 
     try:
-        completion = client.responses.create(
+        completion = client.chat.completions.create(
             model="gpt-4o-mini",
-            input=prompt,
+            messages=[
+                {"role": "system", "content": "You are a logistics call analyzer. Extract structured data from call transcripts and return valid JSON only."},
+                {"role": "user", "content": prompt}
+            ],
             temperature=0.3,
-            max_output_tokens=400,
+            max_tokens=1000,
         )
 
-        raw_text = completion.output_text
+        raw_text = completion.choices[0].message.content
 
         # Remove triple backticks and surrounding whitespace
         cleaned_text = re.sub(r"^```(?:json)?|```$", "", raw_text.strip(), flags=re.MULTILINE)

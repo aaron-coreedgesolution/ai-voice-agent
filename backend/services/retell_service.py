@@ -13,7 +13,7 @@ RETELL_BASE_URL = os.getenv("RETELL_API_BASE", "https://api.retellai.com/v1").re
 
 class RetellService:
     @staticmethod
-    def create_web_call(driver_name: str, load_number: str, phone_number: str = "WEB_CALL") -> Dict[str, Any]:
+    def create_web_call(driver_name: str, load_number: str, phone_number: str = "WEB_CALL", agent_id: str | None = None) -> Dict[str, Any]:
         """
         Create a web call using Retell AI API
         """
@@ -26,12 +26,9 @@ class RetellService:
             "Content-Type": "application/json"
         }
 
-        # Get agent ID from environment or use default
-        # In production, you should get this from the agent_configs table
-        agent_id = os.getenv("RETELL_AGENT_ID")
         if not agent_id:
-            logging.warning("No RETELL_AGENT_ID found, using default agent")
-            agent_id = "default_agent_id"
+            logging.error("❌ No agent_id provided for web call")
+            return {"error": "No agent selected for call"}
         
         payload = {
             "agent_id": agent_id,
@@ -82,7 +79,7 @@ class RetellService:
             return {"error": "Web call connection failed", "details": str(e)}
 
     @staticmethod
-    async def create_web_call_async(driver_name: str, load_number: str, phone_number: str = "WEB_CALL") -> Dict[str, Any]:
+    async def create_web_call_async(driver_name: str, load_number: str, phone_number: str = "WEB_CALL", agent_id: str | None = None) -> Dict[str, Any]:
         """
         Async version of create_web_call
         """
@@ -95,10 +92,9 @@ class RetellService:
             "Content-Type": "application/json"
         }
 
-        agent_id = os.getenv("RETELL_AGENT_ID")
         if not agent_id:
-            logging.warning("No RETELL_AGENT_ID found, using default agent")
-            agent_id = "default_agent_id"
+            logging.error("❌ No agent_id provided for web call")
+            return {"error": "No agent selected for call"}
         
         payload = {
             "agent_id": agent_id,
