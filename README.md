@@ -6,22 +6,22 @@ A comprehensive web application for configuring, testing, and analyzing AI voice
 
 ### ✅ **Core Functionality**
 - **Agent Configuration**: Create and manage AI voice agents with custom prompts
-- **Scenario-Based Agents**: Pre-configured agents for logistics scenarios
 - **Web Call Integration**: Start voice calls using Retell AI Web SDK
-- **Real-time Analysis**: Automatic transcript parsing and structured data extraction
-- **Call Management**: Comprehensive call history and results tracking
+- **AI-Powered Analysis**: Enhanced OpenAI integration for comprehensive transcript analysis
+- **Webhook-Only Data**: Single source of truth with webhook-only call record creation
+- **Call Management**: Comprehensive call history with expandable details and business intelligence
 
-### 🎯 **Logistics Scenarios**
-- **Dispatch Check-in Agent**: End-to-end driver status updates with dynamic questioning
-- **Emergency Protocol Agent**: Immediate emergency detection and escalation
-- **Dynamic Response Handling**: Intelligent handling of edge cases
+### 🎯 **Enhanced AI Processing**
+- **Comprehensive Data Extraction**: 25+ structured fields including sentiment, quality, and business impact
+- **Business Intelligence**: Risk assessment, escalation detection, and action items
+- **Dynamic Response Analysis**: Driver sentiment, call quality, and confidence scoring
+- **Emergency Detection**: Real-time emergency trigger phrase recognition and escalation
 
 ### 🔧 **Advanced Features**
-- **Retell AI Advanced Settings**: Backchanneling, filler words, interruption sensitivity
-- **Scenario-Specific Data Extraction**: Tailored parsing for different call types
-- **Dynamic Response Analysis**: Automatic detection of uncooperative drivers, noise, conflicts
-- **Emergency Detection**: Real-time emergency trigger phrase recognition
-- **Professional UI**: Modern, responsive interface with real-time feedback
+- **Enhanced OpenAI Integration**: Fixed API calls with comprehensive prompt engineering
+- **Webhook-Only Architecture**: Single source of truth for all call data
+- **Business Intelligence**: AI-powered insights for operational decision making
+- **Professional UI**: Modern, responsive interface with Tailwind CSS and expandable call details
 
 ## 🏗️ Architecture
 
@@ -76,8 +76,8 @@ SUPABASE_URL=your_supabase_url
 SUPABASE_KEY=your_supabase_key
 OPENAI_API_KEY=your_openai_key
 RETELL_API_KEY=your_retell_api_key
-RETELL_API_BASE=https://api.retellai.com/v1
-RETELL_AGENT_ID=your_default_agent_id
+RETELL_LLM_ID=your_retell_llm_id
+RETELL_VOICE_ID=11labs-Adrian
 WEBHOOK_URL=https://your-domain.com/webhook/retell
 ```
 
@@ -106,26 +106,48 @@ npm run dev
 
 ## 📋 Usage Guide
 
-### Creating Scenario Agents
+### Creating Custom Agents
 
-1. **Navigate to Dashboard**: Open the web application
-2. **Create Scenario Agent**: Select scenario type (Dispatch Check-in or Emergency Protocol)
-3. **Configure Details**: Add driver name and load number for personalized prompts
-4. **Deploy Agent**: Click "Create Scenario Agent" to deploy to Retell AI
+1. **Navigate to Agents Page**: Click "Agents" in the navigation
+2. **Create New Agent**: Click "Create Agent" button
+3. **Configure Details**: Add agent name, description, and custom prompt
+4. **Deploy Agent**: Click "Create Agent" to deploy to Retell AI
 
 ### Making Test Calls
 
-1. **Manual Test Call**: Fill in driver details and click "Start Test Call"
-2. **Agent-Based Call**: Click "Start Web Call" on any configured agent
-3. **Real-time Interaction**: The web call will open automatically using Retell Web SDK
-4. **Automatic Analysis**: Transcripts are automatically parsed and structured
+1. **Manual Test Call**: Fill in driver details, select an agent, and click "Start Test Call"
+2. **Real-time Interaction**: The web call will open automatically using Retell Web SDK
+3. **Automatic Analysis**: Webhook processes transcripts with AI-powered structured data extraction
+4. **View Results**: Check the Dashboard for call records with comprehensive analysis
 
 ### Analyzing Results
 
-1. **Call Records**: View all call history with structured data
-2. **Expandable Details**: Click on any call to see full transcript and analysis
-3. **Response Quality**: Review dynamic handling analysis for edge cases
-4. **Emergency Detection**: Automatic emergency escalation tracking
+1. **Call Records**: View all call history with comprehensive structured data
+2. **Expandable Details**: Click on any call card to see full transcript, recording, and JSON data
+3. **Business Intelligence**: Review AI-extracted insights including sentiment, quality, and impact
+4. **Action Items**: Check for follow-up requirements and escalation recommendations
+
+## 🔄 Webhook-Only Architecture
+
+### **Single Source of Truth**
+- **Only webhooks create call records** - no manual creation allowed
+- **Enhanced AI processing** with comprehensive structured data extraction
+- **Business intelligence** including sentiment analysis, risk assessment, and action items
+- **Complete data integrity** with no duplicate or conflicting records
+
+### **Data Flow**
+```
+1. User starts call → /calls/start → NO database record created
+2. Call completes → Webhook → AI analysis → Create complete record
+3. Dashboard displays → Comprehensive structured data with business insights
+```
+
+### **Enhanced Structured Data**
+The webhook now extracts **25+ fields** including:
+- **Core Logistics**: call_outcome, driver_status, current_location, eta
+- **Business Intelligence**: driver_sentiment, call_quality, business_impact
+- **Risk Assessment**: escalation_risk, confidence_score, action_items
+- **Operational Insights**: equipment_status, weather_conditions, compliance_notes
 
 ## 🎯 Scenario Implementations
 
@@ -138,7 +160,7 @@ npm run dev
 - POD reminder acknowledgment
 - Location and ETA tracking
 
-**Structured Data Collected**:
+**Enhanced Structured Data Collected**:
 ```json
 {
   "call_outcome": "In-Transit Update" | "Arrival Confirmation",
@@ -147,7 +169,13 @@ npm run dev
   "eta": "Tomorrow, 8:00 AM",
   "delay_reason": "Heavy Traffic" | "Weather" | "None",
   "unloading_status": "In Door 42" | "Waiting for Lumper" | "Detention" | "N/A",
-  "pod_reminder_acknowledged": true | false
+  "pod_reminder_acknowledged": true | false,
+  "driver_sentiment": "Cooperative" | "Frustrated" | "Neutral",
+  "call_quality": "Clear" | "Unclear" | "Noisy",
+  "business_impact": "Low" | "Medium" | "High" | "Critical",
+  "confidence_score": 0.95,
+  "key_issues": ["Traffic delays", "ETA confirmation"],
+  "action_items": ["Monitor progress", "Update customer"]
 }
 ```
 
@@ -197,16 +225,13 @@ npm run dev
 
 ### Agent Management
 - `POST /agents/` - Create custom agent
-- `POST /agents/scenario` - Create scenario agent
 - `GET /agents/` - List all agents
-- `GET /agents/scenarios` - Get available scenarios
-- `PUT /agents/{id}` - Update agent
 - `DELETE /agents/{id}` - Delete agent
 
 ### Call Management
-- `POST /calls/start` - Start web call
+- `POST /calls/start` - Start web call (no database record created)
 - `GET /calls/` - Get call records
-- `POST /calls/` - Create call record
+- ~~`POST /calls/` - Create call record~~ (DISABLED - webhook only)
 
 ### Webhooks
 - `POST /webhook/retell` - Retell AI webhook handler
@@ -216,14 +241,15 @@ npm run dev
 ### Run Backend Tests
 ```bash
 cd backend
-python test_retell.py
+python test_enhanced_webhook.py
+python test_dispatch_scenario.py
 ```
 
 ### Test Web Calls
-1. Create a scenario agent
+1. Create a custom agent
 2. Start a test call from the dashboard
 3. Verify web call opens with Retell Web SDK
-4. Check call records for structured data
+4. Check Dashboard for AI-processed call records with comprehensive structured data
 
 ## 🚀 Deployment
 

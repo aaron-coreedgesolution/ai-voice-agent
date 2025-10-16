@@ -21,7 +21,7 @@ function Topbar() {
     boxShadow: '0 6px 14px rgba(102,126,234,0.35)'
   };
   return (
-    <header className="md:hidden" style={{ position: 'sticky', top: 0, zIndex: 30, background: 'linear-gradient(180deg, #ffffff 0%, #f8fafc 100%)', borderBottom: '1px solid #e5e7eb' }}>
+    <header style={{ position: 'sticky', top: 0, zIndex: 30, background: 'linear-gradient(180deg, #ffffff 0%, #f8fafc 100%)', borderBottom: '1px solid #e5e7eb' }}>
       <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', padding: '10px 12px' }}>
         <div style={{ display: 'flex', alignItems: 'center', gap: '0.5rem', fontWeight: 700 }}>
           <span>🎙️</span>
@@ -42,10 +42,10 @@ function Topbar() {
 export default function App() {
   return (
     <BrowserRouter>
-      <div className="flex flex-col min-h-screen">
+      <div style={{ display: 'flex', flexDirection: 'column', minHeight: '100vh' }}>
         <Topbar />
-        <main className="content">
-          <div className="container">
+        <main style={{ flex: 1 }}>
+          <div style={{ width: '100%', margin: 0 }}>
             <Routes>
               <Route path="/" element={<Dashboard />} />
               <Route path="/agents" element={<AgentConfigs />} />

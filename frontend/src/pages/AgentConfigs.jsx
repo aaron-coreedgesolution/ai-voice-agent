@@ -29,11 +29,11 @@ export default function AgentConfigs() {
   }, []);
 
   if (loading) {
-    return <p className="p-6 text-gray-600">Loading agent configurations...</p>;
+    return <p style={{ padding: '1.5rem', color: '#4b5563' }}>Loading agent configurations...</p>;
   }
 
   if (error) {
-    return <p className="p-6 text-red-500">{error}</p>;
+    return <p style={{ padding: '1.5rem', color: '#ef4444' }}>{error}</p>;
   }
 
   const handleStartCall = async (agentId) => {
@@ -79,7 +79,7 @@ export default function AgentConfigs() {
         </div>
 
         {configs.length === 0 ? (
-          <p className="text-slate-600">No agents configured yet.</p>
+          <p style={{ color: '#475569' }}>No agents configured yet.</p>
         ) : (
           <div style={styles.grid}>
             {configs.map((agent) => {

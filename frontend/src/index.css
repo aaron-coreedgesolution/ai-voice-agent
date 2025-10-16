@@ -1,8 +1,4 @@
-@tailwind base;
-@tailwind components;
-@tailwind utilities;
-
-/* Base resets and typography */
+/* Base resets and typography (Tailwind removed) */
 :root {
   color-scheme: light;
 }
@@ -12,5 +8,8 @@ html, body, #root {
 }
 
 body {
-  @apply bg-slate-50 text-slate-800 antialiased;
+  background: #f8fafc;
+  color: #1f2937;
+  -webkit-font-smoothing: antialiased;
+  -moz-osx-font-smoothing: grayscale;
 }
