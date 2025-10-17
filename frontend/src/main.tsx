@@ -1,10 +1,13 @@
-import { StrictMode } from 'react'
-import { createRoot } from 'react-dom/client'
-// Removed Tailwind/global CSS imports as Tailwind is being removed
-import App from './App.js'
+import { StrictMode } from 'react';
+import { createRoot } from 'react-dom/client';
+// Import Tailwind/global CSS so utility classes are applied app-wide
+import './index.css';
+// Load react-toastify styles after Tailwind to avoid being overridden
+import 'react-toastify/dist/ReactToastify.css';
+import App from './App';
 
-createRoot(document.getElementById('root')).render(
+createRoot(document.getElementById('root')!).render(
   <StrictMode>
     <App />
   </StrictMode>,
-)
+);

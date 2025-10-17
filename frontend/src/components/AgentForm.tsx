@@ -5,7 +5,6 @@ export interface AgentFormData {
   name: string;
   description: string;
   prompt: string;
-  settings: string;
 }
 
 interface AgentFormProps {
@@ -18,7 +17,6 @@ const AgentForm: React.FC<AgentFormProps> = ({ onSubmit, initialData = {} }) => 
     name: initialData.name || "",
     description: initialData.description || "",
     prompt: initialData.prompt || "",
-    settings: initialData.settings || "",
   });
 
   const handleChange = (
@@ -53,7 +51,7 @@ const AgentForm: React.FC<AgentFormProps> = ({ onSubmit, initialData = {} }) => 
           value={formData.name}
           onChange={handleChange}
           placeholder="e.g., Dispatch Assistant"
-          className="w-full border-gray-300 rounded-lg p-2.5 focus:ring-2 focus:ring-blue-500 focus:border-blue-500 outline-none transition"
+          className="w-full border border-gray-300 rounded-lg p-2.5 focus:ring-2 focus:ring-blue-500 focus:border-blue-500 outline-none transition"
           required
         />
       </div>
@@ -69,7 +67,7 @@ const AgentForm: React.FC<AgentFormProps> = ({ onSubmit, initialData = {} }) => 
           onChange={handleChange}
           placeholder="Describe what this agent does..."
           rows={2}
-          className="w-full border-gray-300 rounded-lg p-2.5 focus:ring-2 focus:ring-blue-500 focus:border-blue-500 outline-none transition"
+          className="w-full border border-gray-300 rounded-lg p-2.5 focus:ring-2 focus:ring-blue-500 focus:border-blue-500 outline-none transition"
         />
       </div>
 
@@ -84,24 +82,11 @@ const AgentForm: React.FC<AgentFormProps> = ({ onSubmit, initialData = {} }) => 
           onChange={handleChange}
           placeholder="Provide the main prompt or conversation script..."
           rows={4}
-          className="w-full border-gray-300 rounded-lg p-2.5 focus:ring-2 focus:ring-blue-500 focus:border-blue-500 outline-none transition"
+          className="w-full border border-gray-300 rounded-lg p-2.5 focus:ring-2 focus:ring-blue-500 focus:border-blue-500 outline-none transition"
         />
       </div>
 
-      <div className="space-y-2">
-        <label className="text-sm font-medium text-gray-700" htmlFor="settings">
-          Advanced Settings (JSON or text)
-        </label>
-        <textarea
-          id="settings"
-          name="settings"
-          value={formData.settings}
-          onChange={handleChange}
-          placeholder='e.g., {"voice":"male","tone":"friendly"}'
-          rows={3}
-          className="w-full border-gray-300 rounded-lg p-2.5 focus:ring-2 focus:ring-blue-500 focus:border-blue-500 outline-none transition font-mono text-sm"
-        />
-      </div>
+      {/* Advanced Settings removed from the UI; it's handled server-side/defaults */}
 
       <div className="pt-2">
         <Button type="submit" variant="primary" className="w-full">

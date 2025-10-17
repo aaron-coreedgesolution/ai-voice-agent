@@ -1,195 +1,190 @@
 // src/pages/CallRecords.tsx
 import React, { useEffect, useState } from "react";
 import api from "../api";
+import { toast, ToastContainer } from "react-toastify";
+import Card from "../components/ui/Card";
+import Badge from "../components/ui/Badge";
+import Loader, { Spinner } from "../components/ui/Loader";
+import Layout from "../components/Layout";
 
-interface CallRecord {
-  id: string | number;
-  driver_name: string;
-  phone_number: string;
+type CallRecord = {
+  id: string;
+  driver_name?: string;
+  phone_number?: string;
   load_number?: string;
   call_outcome?: string;
-  transcript?: string;
-  structured_data?: Record<string, any>;
-}
+  structured_data?: { recording_url?: string; [k: string]: any };
+  created_at?: string;
+};
 
-interface CallStats {
-  total: number;
-  completed: number;
-  failed: number;
-  pending: number;
-}
-
-export default function CallRecords(): React.ReactElement {
-  const [records, setRecords] = useState<CallRecord[]>([]);
+const CallRecords: React.FC = () => {
+  const [calls, setCalls] = useState<CallRecord[]>([]);
   const [loading, setLoading] = useState<boolean>(true);
-  const [error, setError] = useState<string | null>(null);
-  const [expandedRecord, setExpandedRecord] = useState<string | number | null>(
-    null
-  );
+  const [query, setQuery] = useState<string>("");
+
+  const load = async () => {
+    setLoading(true);
+    try {
+      const res = await api.get("/calls/");
+      const items: CallRecord[] =
+        res?.data?.calls ?? res?.data?.data ?? res?.data ?? [];
+      const sorted = Array.isArray(items)
+        ? [...items].sort((a, b) => {
+            const ta = a?.created_at ? Date.parse(String(a.created_at)) : 0;
+            const tb = b?.created_at ? Date.parse(String(b.created_at)) : 0;
+            return (tb || 0) - (ta || 0);
+          })
+        : [];
+      setCalls(sorted);
+    } catch (err) {
+      console.error("Failed to load calls", err);
+      toast.error("Failed to load calls");
+    } finally {
+      setLoading(false);
+    }
+  };
 
   useEffect(() => {
-    const fetchRecords = async () => {
-      try {
-        const res = await api.get("/calls/");
-        setRecords(res.data?.calls || res.data?.data || []);
-      } catch (err) {
-        console.error("Failed to fetch call records:", err);
-        setError("Failed to load call records.");
-      } finally {
-        setLoading(false);
-      }
-    };
-    fetchRecords();
+    load();
   }, []);
 
-  const getOutcomeBadge = (outcome?: string): React.ReactElement => {
-    let badgeColor =
-      "bg-indigo-100 text-indigo-800"; // default (pending/in-progress)
-    if (
-      outcome === "Completed" ||
-      outcome === "Emergency Escalation" ||
-      outcome === "In-Transit Update" ||
-      outcome === "Arrival Confirmation"
-    ) {
-      badgeColor = "bg-green-100 text-green-800";
-    } else if (outcome === "Failed") {
-      badgeColor = "bg-red-100 text-red-800";
-    } else if (outcome === "Pending" || outcome === "In Progress") {
-      badgeColor = "bg-yellow-100 text-yellow-800";
+  const filtered = calls.filter((c) =>
+    `${c.driver_name ?? ""} ${c.phone_number ?? ""} ${c.load_number ?? ""}`
+      .toLowerCase()
+      .includes(query.toLowerCase())
+  );
+  const [expanded, setExpanded] = useState<Set<string>>(new Set());
+  const toggleExpanded = (id: string) => {
+    setExpanded((prev) => {
+      const next = new Set(prev);
+      if (next.has(id)) next.delete(id);
+      else next.add(id);
+      return next;
+    });
+  };
+
+  const downloadRecording = (url?: string) => {
+    if (!url) {
+      toast.info("No recording available");
+      return;
     }
-
-    return (
-      <span
-        className={`inline-block px-3 py-1 rounded-full text-xs font-semibold uppercase tracking-wide ${badgeColor}`}
-      >
-        {outcome || "Pending"}
-      </span>
-    );
+    window.open(url, "_blank");
   };
-
-  const getCallStats = (): CallStats => {
-    const total = records.length;
-    const completed = records.filter(
-      (r) =>
-        r.call_outcome === "Completed" ||
-        r.call_outcome === "Emergency Escalation" ||
-        r.call_outcome === "In-Transit Update" ||
-        r.call_outcome === "Arrival Confirmation"
-    ).length;
-    const failed = records.filter((r) => r.call_outcome === "Failed").length;
-    const pending = records.filter(
-      (r) => !r.call_outcome || r.call_outcome === "Pending"
-    ).length;
-
-    return { total, completed, failed, pending };
-  };
-
-  const stats = getCallStats();
-
-  if (loading)
-    return (
-      <div className="min-h-screen flex flex-col items-center justify-center bg-gradient-to-br from-indigo-500 to-purple-600 text-white">
-        <div className="text-4xl mb-3 animate-pulse">⏳</div>
-        <p className="text-lg">Loading call records...</p>
-      </div>
-    );
-
-  if (error)
-    return (
-      <div className="min-h-screen flex flex-col items-center justify-center bg-gradient-to-br from-indigo-500 to-purple-600 text-white">
-        <div className="text-4xl mb-3">❌</div>
-        <p className="text-lg font-semibold">{error}</p>
-      </div>
-    );
 
   return (
-    <div className="min-h-screen bg-gradient-to-br from-indigo-500 to-purple-600">
-      <div className="max-w-7xl mx-auto px-6 py-10 bg-white/90 backdrop-blur-lg min-h-screen">
-        {/* Header */}
-        <header className="relative bg-gradient-to-br from-indigo-500 to-purple-600 text-white text-center rounded-3xl py-12 mb-12 shadow-lg overflow-hidden">
-          <div className="absolute inset-0 opacity-20 bg-[url('data:image/svg+xml,%3Csvg width=%2260%22 height=%2260%22 xmlns=%22http://www.w3.org/2000/svg%22%3E%3Cg fill=%22%23fff%22 fill-opacity=%220.2%22%3E%3Ccircle cx=%2230%22 cy=%2230%22 r=%222%22/%3E%3C/g%3E%3C/svg%3E')]"></div>
-          <h1 className="relative text-4xl font-extrabold z-10">📊 Call Records</h1>
-          <p className="relative text-lg font-light mt-2 z-10">
-            Review and analyze voice agent call history
-          </p>
-        </header>
-
-        {/* Stats Bar */}
-        {records.length > 0 && (
-          <div className="grid grid-cols-2 sm:grid-cols-4 gap-4 mb-10">
-            <div className="bg-white rounded-xl shadow text-center py-5">
-              <div className="text-2xl font-bold text-indigo-600">
-                {stats.total}
-              </div>
-              <div className="text-gray-500 text-sm">Total Calls</div>
-            </div>
-            <div className="bg-white rounded-xl shadow text-center py-5">
-              <div className="text-2xl font-bold text-green-600">
-                {stats.completed}
-              </div>
-              <div className="text-gray-500 text-sm">Completed</div>
-            </div>
-            <div className="bg-white rounded-xl shadow text-center py-5">
-              <div className="text-2xl font-bold text-red-600">
-                {stats.failed}
-              </div>
-              <div className="text-gray-500 text-sm">Failed</div>
-            </div>
-            <div className="bg-white rounded-xl shadow text-center py-5">
-              <div className="text-2xl font-bold text-yellow-600">
-                {stats.pending}
-              </div>
-              <div className="text-gray-500 text-sm">Pending</div>
-            </div>
+    <Layout>
+      <ToastContainer position="top-right" autoClose={3000} />
+      <div className="flex items-center justify-between mb-4">
+        <h1 className="text-2xl font-bold">Call Records</h1>
+        <div className="flex items-center gap-3">
+          <div className="relative">
+            <input
+              value={query}
+              onChange={(e: React.ChangeEvent<HTMLInputElement>) =>
+                setQuery(e.target.value)
+              }
+              placeholder="Search calls..."
+              className="pl-10 pr-4 py-2 rounded-md border border-gray-200 dark:border-gray-700 bg-white dark:bg-gray-800 text-sm w-60 focus:ring-2 focus:ring-indigo-200"
+            />
+            <svg
+              className="w-4 h-4 absolute left-3 top-2.5 text-gray-400"
+              viewBox="0 0 24 24"
+              fill="none"
+            >
+              <path
+                d="M21 21l-4.35-4.35"
+                stroke="currentColor"
+                strokeWidth="2"
+                strokeLinecap="round"
+                strokeLinejoin="round"
+              />
+              <circle
+                cx="11"
+                cy="11"
+                r="6"
+                stroke="currentColor"
+                strokeWidth="2"
+                strokeLinecap="round"
+                strokeLinejoin="round"
+              />
+            </svg>
           </div>
-        )}
+          <button
+            onClick={load}
+            className="text-sm text-indigo-600 hover:underline"
+          >
+            Refresh
+          </button>
+        </div>
+      </div>
 
-        {/* Call Records Table */}
-        {records.length > 0 ? (
-          <div className="overflow-x-auto bg-white rounded-xl shadow-md border border-gray-200">
-            <table className="w-full text-left border-collapse">
-              <thead className="bg-gray-100 text-gray-700 uppercase text-sm">
-                <tr>
-                  <th className="p-3">Driver</th>
-                  <th className="p-3">Phone</th>
-                  <th className="p-3">Load #</th>
-                  <th className="p-3">Outcome</th>
-                  <th className="p-3">Transcript</th>
-                </tr>
-              </thead>
-              <tbody>
-                {records.map((record) => (
-                  <tr
-                    key={record.id}
-                    className="border-t hover:bg-gray-50 transition"
-                    onClick={() =>
-                      setExpandedRecord(
-                        expandedRecord === record.id ? null : record.id
-                      )
-                    }
-                  >
-                    <td className="p-3 font-medium text-gray-800">
-                      {record.driver_name}
-                    </td>
-                    <td className="p-3 text-gray-600">
-                      {record.phone_number}
-                    </td>
-                    <td className="p-3 text-gray-600">
-                      {record.load_number || "-"}
-                    </td>
-                    <td className="p-3">{getOutcomeBadge(record.call_outcome)}</td>
-                    <td className="p-3 text-sm text-gray-700 truncate max-w-xs">
-                      {record.transcript || "—"}
-                    </td>
-                  </tr>
-                ))}
-              </tbody>
-            </table>
+      <Card>
+        {loading ? (
+          <div className="space-y-3">
+            <Loader lines={4} />
+          </div>
+        ) : filtered.length === 0 ? (
+          <div className="py-6 text-center text-sm text-gray-500">
+            No matching calls
           </div>
         ) : (
-          <p className="text-gray-700">No call records found.</p>
+          <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-4">
+            {filtered.map((c) => {
+              const variant =
+                c.call_outcome === "Completed"
+                  ? "success"
+                  : c.call_outcome === "Failed"
+                  ? "danger"
+                  : "warning";
+              const isOpen = expanded.has(c.id);
+              return (
+                <div key={c.id} className="rounded-md shadow-sm hover:shadow-md transition bg-white dark:bg-gray-800 p-4">
+                  <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 lg:grid-cols-4 gap-2">
+                    <div>
+                      <div className="text-xs text-gray-400">Driver</div>
+                      <div className="font-medium text-gray-900 dark:text-gray-100">{c.driver_name ?? 'Unknown'}</div>
+                    </div>
+                    <div>
+                      <div className="text-xs text-gray-400">Phone</div>
+                      <div className="text-sm text-gray-500">{c.phone_number ?? '-'}</div>
+                    </div>
+                    <div>
+                      <div className="text-xs text-gray-400">Load</div>
+                      <div className="text-sm text-gray-500">{c.load_number ?? '-'}</div>
+                    </div>
+                    <div>
+                      <div className="text-xs text-gray-400">Outcome</div>
+                      <div className="mt-1"><Badge variant={variant}>{c.call_outcome ?? 'Pending'}</Badge></div>
+                    </div>
+                  </div>
+
+                  <div className="mt-3 flex items-center justify-between">
+                    <div className="text-sm text-gray-500">{c.created_at ? new Date(c.created_at).toLocaleString() : ''}</div>
+                    <div className="flex items-center gap-3">
+                      <button
+                        onClick={() => toggleExpanded(c.id)}
+                        aria-expanded={isOpen}
+                        className="text-sm text-indigo-600 hover:underline"
+                      >
+                        {isOpen ? 'Hide details' : 'Show details'}
+                      </button>
+                    </div>
+                  </div>
+
+                  {isOpen && (
+                    <div className="mt-3 text-sm text-gray-600 dark:text-gray-300 bg-gray-50 dark:bg-gray-900 p-3 rounded">
+                      <div className="mb-2"><strong>Structured Data</strong></div>
+                      <pre className="text-xs overflow-auto max-h-40">{JSON.stringify(c.structured_data ?? {}, null, 2)}</pre>
+                    </div>
+                  )}
+                </div>
+              );
+            })}
+          </div>
         )}
-      </div>
-    </div>
+      </Card>
+    </Layout>
   );
-}
+};
+
+export default CallRecords;
