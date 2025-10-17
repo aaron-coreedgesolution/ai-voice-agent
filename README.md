@@ -9,68 +9,69 @@ A comprehensive web application for configuring, testing, and analyzing AI voice
 - **Web Call Integration**: Start voice calls using Retell AI Web SDK
 - **AI-Powered Analysis**: Enhanced OpenAI integration for comprehensive transcript analysis
 - **Webhook-Only Data**: Single source of truth with webhook-only call record creation
-- **Call Management**: Comprehensive call history with expandable details and business intelligence
+# 🎯 AI Voice Agent
 
-### 🎯 **Enhanced AI Processing**
-- **Comprehensive Data Extraction**: 25+ structured fields including sentiment, quality, and business impact
-- **Business Intelligence**: Risk assessment, escalation detection, and action items
-- **Dynamic Response Analysis**: Driver sentiment, call quality, and confidence scoring
-- **Emergency Detection**: Real-time emergency trigger phrase recognition and escalation
+AI Voice Agent is a web application to configure, test and analyze AI-powered phone calls for logistics scenarios. It combines a React + TypeScript frontend with a FastAPI backend, stores data in Supabase, and integrates with Retell AI (voice) and OpenAI (transcript analysis).
 
-### 🔧 **Advanced Features**
-- **Enhanced OpenAI Integration**: Fixed API calls with comprehensive prompt engineering
-- **Webhook-Only Architecture**: Single source of truth for all call data
-- **Business Intelligence**: AI-powered insights for operational decision making
-- **Professional UI**: Modern, responsive interface with Tailwind CSS and expandable call details
+This README was updated to reflect the current state of the repository (TypeScript frontend, Tailwind CSS, centralized Axios API, and backend cleanup).
 
-## 🏗️ Architecture
+---
 
-```
-┌─────────────────┐    ┌─────────────────┐    ┌─────────────────┐
-│   React Frontend │    │  FastAPI Backend │    │  Supabase DB    │
-│                 │    │                 │    │                 │
-│ • Dashboard     │◄──►│ • Agent Routes  │◄──►│ • Agent Configs │
-│ • Call Records  │    │ • Call Routes   │    │ • Call Records  │
-│ • Web SDK       │    │ • Webhooks      │    │                 │
-└─────────────────┘    └─────────────────┘    └─────────────────┘
-         │                       │                       │
-         │                       │                       │
-         ▼                       ▼                       ▼
-┌─────────────────┐    ┌─────────────────┐    ┌─────────────────┐
-│   Retell AI     │    │   OpenAI API    │    │  Dynamic Handler│
-│                 │    │                 │    │                 │
-│ • Voice Calls   │    │ • Transcript    │    │ • Edge Cases    │
-│ • Web SDK       │    │   Analysis      │    │ • Response      │
-│ • Advanced      │    │ • Structured    │    │   Quality       │
-│   Settings      │    │   Data          │    │ • Escalation    │
-└─────────────────┘    └─────────────────┘    └─────────────────┘
-```
+## Quick summary of recent important changes
 
-## 🚀 Quick Start
+- Frontend migrated largely to TypeScript (.tsx). Components and pages now use explicit types.
+- Tailwind CSS is used across the frontend. A temporary CDN fallback is present for development; PostCSS adapter configuration was added to compile Tailwind in the dev build.
+- Shared UI components were added under `frontend/src/components/ui/` (Card, Button, FormInput, Badge, Avatar, Loader, EmptyState, Table, etc.).
+- API requests in the frontend use a central axios instance (`frontend/src/api.ts` and `frontend/src/api/api.ts`) with request/response interceptors.
+- Backend housekeeping: removed local test files and a duplicate/typo init file (`backend/_init_.py`).
 
-### Prerequisites
+---
+
+## Repo layout (high level)
+
+backend/         FastAPI app, routes, services and database helpers
+frontend/        React + TypeScript SPA (Vite) with Tailwind CSS
+supabase/        SQL migrations and config
+
+Key frontend folders:
+- `frontend/src/components` — shared components and UI primitives
+- `frontend/src/pages` — page components (Dashboard, CallRecords, AgentConfigs, CreateAgent)
+- `frontend/src/api` — axios API helpers
+
+Key backend files:
+- `backend/main.py` — FastAPI app entry
+- `backend/routes/agent_routes.py` — agent create/list/delete (creates agent on Retell)
+- `backend/routes/call_routes.py` — start call endpoint
+- `backend/routes/webhook_routes.py` — webhook receiver for Retell
+- `backend/services/*` — supabase, retell client integration, enhanced webhook processing
+
+---
+
+## Prerequisites
+
 - Python 3.11+
 - Node.js 18+
-- Supabase account
-- Retell AI account
-- OpenAI API key
+- Supabase project (for storage)
+- Retell AI account and API key
+- OpenAI API key (for analysis features)
 
-### 1. Clone and Setup
-```bash
-git clone <repository-url>
-cd ai-voice-agent
-```
+Notes for Windows/PowerShell users: use PowerShell commands shown below. If you see execution policy restrictions for scripts or npx, run PowerShell as Administrator or use Git Bash.
 
-### 2. Backend Setup
-```bash
+---
+
+## Local development (PowerShell-friendly)
+
+1) Backend
+
+```powershell
 cd backend
 python -m venv venv
-source venv/bin/activate  # On Windows: venv\Scripts\activate
+venv\Scripts\Activate.ps1   # In PowerShell
 pip install -r requirements.txt
 ```
 
-### 3. Environment Configuration
-Create `backend/.env`:
+Create `.env` in `backend/` with the keys below (example):
+
 ```env
 SUPABASE_URL=your_supabase_url
 SUPABASE_KEY=your_supabase_key
@@ -78,269 +79,108 @@ OPENAI_API_KEY=your_openai_key
 RETELL_API_KEY=your_retell_api_key
 RETELL_LLM_ID=your_retell_llm_id
 RETELL_VOICE_ID=11labs-Adrian
-WEBHOOK_URL=https://your-domain.com/webhook/retell
+WEBHOOK_URL=https://your-public-url/webhook/retell
 ```
 
-### 4. Database Setup
-```bash
-# Run Supabase migrations
-supabase db reset
-```
+2) Frontend
 
-### 5. Frontend Setup
-```bash
+```powershell
 cd frontend
 npm install
 ```
 
-### 6. Start the Application
-```bash
-# Terminal 1: Backend
+Important: If Tailwind utilities are not being compiled by Vite, install the adapter and Tailwind locally (only needed once):
+
+```powershell
+npm install -D @tailwindcss/postcss@latest tailwindcss@latest postcss@latest
+```
+
+3) Run locally (two terminals)
+
+Backend (PowerShell):
+```powershell
 cd backend
 uvicorn main:app --reload
+```
 
-# Terminal 2: Frontend
+Frontend (PowerShell):
+```powershell
 cd frontend
 npm run dev
 ```
 
-## 📋 Usage Guide
+4) TypeScript check (optional but recommended):
 
-### Creating Custom Agents
-
-1. **Navigate to Agents Page**: Click "Agents" in the navigation
-2. **Create New Agent**: Click "Create Agent" button
-3. **Configure Details**: Add agent name, description, and custom prompt
-4. **Deploy Agent**: Click "Create Agent" to deploy to Retell AI
-
-### Making Test Calls
-
-1. **Manual Test Call**: Fill in driver details, select an agent, and click "Start Test Call"
-2. **Real-time Interaction**: The web call will open automatically using Retell Web SDK
-3. **Automatic Analysis**: Webhook processes transcripts with AI-powered structured data extraction
-4. **View Results**: Check the Dashboard for call records with comprehensive analysis
-
-### Analyzing Results
-
-1. **Call Records**: View all call history with comprehensive structured data
-2. **Expandable Details**: Click on any call card to see full transcript, recording, and JSON data
-3. **Business Intelligence**: Review AI-extracted insights including sentiment, quality, and impact
-4. **Action Items**: Check for follow-up requirements and escalation recommendations
-
-## 🔄 Webhook-Only Architecture
-
-### **Single Source of Truth**
-- **Only webhooks create call records** - no manual creation allowed
-- **Enhanced AI processing** with comprehensive structured data extraction
-- **Business intelligence** including sentiment analysis, risk assessment, and action items
-- **Complete data integrity** with no duplicate or conflicting records
-
-### **Data Flow**
-```
-1. User starts call → /calls/start → NO database record created
-2. Call completes → Webhook → AI analysis → Create complete record
-3. Dashboard displays → Comprehensive structured data with business insights
-```
-
-### **Enhanced Structured Data**
-The webhook now extracts **25+ fields** including:
-- **Core Logistics**: call_outcome, driver_status, current_location, eta
-- **Business Intelligence**: driver_sentiment, call_quality, business_impact
-- **Risk Assessment**: escalation_risk, confidence_score, action_items
-- **Operational Insights**: equipment_status, weather_conditions, compliance_notes
-
-## 🎯 Scenario Implementations
-
-### Scenario 1: Dispatch Check-in Agent
-**Purpose**: End-to-end driver status updates with dynamic questioning
-
-**Features**:
-- Dynamic status determination (Driving/Delayed/Arrived/Unloading)
-- Context-aware follow-up questions
-- POD reminder acknowledgment
-- Location and ETA tracking
-
-**Enhanced Structured Data Collected**:
-```json
-{
-  "call_outcome": "In-Transit Update" | "Arrival Confirmation",
-  "driver_status": "Driving" | "Delayed" | "Arrived" | "Unloading",
-  "current_location": "I-10 near Indio, CA",
-  "eta": "Tomorrow, 8:00 AM",
-  "delay_reason": "Heavy Traffic" | "Weather" | "None",
-  "unloading_status": "In Door 42" | "Waiting for Lumper" | "Detention" | "N/A",
-  "pod_reminder_acknowledged": true | false,
-  "driver_sentiment": "Cooperative" | "Frustrated" | "Neutral",
-  "call_quality": "Clear" | "Unclear" | "Noisy",
-  "business_impact": "Low" | "Medium" | "High" | "Critical",
-  "confidence_score": 0.95,
-  "key_issues": ["Traffic delays", "ETA confirmation"],
-  "action_items": ["Monitor progress", "Update customer"]
-}
-```
-
-### Scenario 2: Emergency Protocol Agent
-**Purpose**: Immediate emergency detection and escalation
-
-**Features**:
-- Real-time emergency keyword detection
-- Immediate conversation thread switching
-- Safety status verification
-- Automatic human dispatcher escalation
-
-**Structured Data Collected**:
-```json
-{
-  "call_outcome": "Emergency Escalation",
-  "emergency_type": "Accident" | "Breakdown" | "Medical" | "Other",
-  "safety_status": "Driver confirmed everyone is safe",
-  "injury_status": "No injuries reported",
-  "emergency_location": "I-15 North, Mile Marker 123",
-  "load_secure": true | false,
-  "escalation_status": "Connected to Human Dispatcher"
-}
-```
-
-## 🔧 Advanced Configuration
-
-### Retell AI Advanced Settings
-```python
-{
-    "backchanneling": True,           # Natural conversation flow
-    "filler_words": True,             # Human-like speech patterns
-    "interruption_sensitivity": 0.7,  # Response to interruptions
-    "response_delay": 0.8,            # Natural response timing
-    "voice_id": "11labs-Adrian",      # Voice selection
-    "language": "en"                  # Language setting
-}
-```
-
-### Dynamic Response Handling
-- **Uncooperative Driver Detection**: Automatic probing for detailed responses
-- **Noise Environment Handling**: Repetition requests for unclear audio
-- **Conflicting Information**: Non-confrontational clarification requests
-- **Escalation Logic**: Intelligent escalation based on response quality
-
-## 📊 API Endpoints
-
-### Agent Management
-- `POST /agents/` - Create custom agent
-- `GET /agents/` - List all agents
-- `DELETE /agents/{id}` - Delete agent
-
-### Call Management
-- `POST /calls/start` - Start web call (no database record created)
-- `GET /calls/` - Get call records
-- ~~`POST /calls/` - Create call record~~ (DISABLED - webhook only)
-
-### Webhooks
-- `POST /webhook/retell` - Retell AI webhook handler
-
-## 🧪 Testing
-
-### Run Backend Tests
-```bash
-cd backend
-python test_enhanced_webhook.py
-python test_dispatch_scenario.py
-```
-
-### Test Web Calls
-1. Create a custom agent
-2. Start a test call from the dashboard
-3. Verify web call opens with Retell Web SDK
-4. Check Dashboard for AI-processed call records with comprehensive structured data
-
-## 🚀 Deployment
-
-### Production Environment
-1. **Environment Variables**: Set production API keys and URLs
-2. **Database**: Configure production Supabase instance
-3. **Webhook URL**: Set up public webhook endpoint (e.g., ngrok, cloud deployment)
-4. **SSL**: Ensure HTTPS for webhook security
-
-### Docker Deployment (Optional)
-```dockerfile
-# Backend Dockerfile
-FROM python:3.11-slim
-WORKDIR /app
-COPY requirements.txt .
-RUN pip install -r requirements.txt
-COPY . .
-CMD ["uvicorn", "main:app", "--host", "0.0.0.0", "--port", "8000"]
-```
-
-## 🔒 Security Considerations
-
-- **API Key Management**: Store sensitive keys in environment variables
-- **Webhook Security**: Implement webhook signature verification
-- **Data Privacy**: Ensure compliance with data protection regulations
-- **Access Control**: Implement authentication for production use
-
-## 📈 Performance Optimization
-
-- **Caching**: Implement Redis for frequently accessed data
-- **Database Indexing**: Optimize Supabase queries
-- **CDN**: Use CDN for static frontend assets
-- **Monitoring**: Implement logging and error tracking
-
-## 🤝 Contributing
-
-1. Fork the repository
-2. Create a feature branch
-3. Implement changes with tests
-4. Submit a pull request
-
-## 📝 License
-
-This project is licensed under the MIT License.
-
-## 🆘 Support
-
-For issues and questions:
-1. Check the troubleshooting section below
-2. Review API documentation
-3. Create an issue in the repository
-
-## 🔧 Troubleshooting
-
-### Common Issues
-
-**Web Call Not Starting**:
-- Verify Retell API key is correct
-- Check webhook URL is accessible
-- Ensure Retell Web SDK is properly imported
-
-**Transcript Analysis Failing**:
-- Verify OpenAI API key
-- Check transcript content is not empty
-- Review OpenAI API rate limits
-
-**Database Connection Issues**:
-- Verify Supabase credentials
-- Check database migration status
-- Ensure network connectivity
-
-### Debug Mode
-```bash
-# Enable debug logging
-export LOG_LEVEL=DEBUG
-uvicorn main:app --reload --log-level debug
+```powershell
+cd frontend
+npx tsc --noEmit
 ```
 
 ---
 
-## 🎉 **Project Completion Status**
+## What to expect in the UI
 
-This implementation fully satisfies all requirements from the original specification:
+- Dashboard — start test calls (uses Retell Web SDK), see active call with End Call button, and view recent calls.
+- Call Records — paginated/grid view with expandable structured data for each call. Calls are shown newest-first.
+- Agents — create agents via the Create Agent page. The UI no longer exposes an "Advanced Settings" field by default; the backend uses reasonable defaults and will create the agent on Retell.
 
-✅ **Core Requirements**: Complete web application with React, FastAPI, Supabase, and Retell AI integration
-✅ **Agent Configuration UI**: Simple interface for creating and managing agents
-✅ **Call Triggering & Results**: Complete call management with structured results display
-✅ **Backend Logic**: FastAPI webhook with post-processing and real-time guidance
-✅ **Scenario Implementation**: Both Dispatch Check-in and Emergency Protocol agents
-✅ **Advanced Voice Configuration**: Retell AI advanced settings (backchanneling, filler words, interruption sensitivity)
-✅ **Dynamic Response Handling**: Edge case handling for uncooperative drivers, noise, and conflicts
-✅ **Structured Data Extraction**: Scenario-specific parsing with all required fields
+---
 
-The application is production-ready and demonstrates enterprise-level code quality with comprehensive error handling, logging, and user experience design.
+## API (selected endpoints)
+
+- `POST /agents/` — create agent (also creates agent on Retell and stores the returned `retell_agent_id` in Supabase)
+- `GET /agents/` — list agent configs
+- `DELETE /agents/{id}` — delete agent config
+- `POST /calls/start` — start a web call (returns temporary access token for Retell; webhook will create the record when the call completes)
+- `GET /calls/` — fetch call records (frontend sorts newest-first)
+- `POST /webhook/retell` — webhook receiver for Retell events (call completed, transcripts, structured data enrichment)
+
+---
+
+## Notes on design decisions
+
+- Centralized axios instance: frontend uses `frontend/src/api` for consistent headers, timeouts and error handling.
+- Tailwind + shared UI primitives: components in `frontend/src/components/ui/` reduce duplication and make styling consistent.
+- Webhook-only call creation: starting a call does not create a DB record; the webhook from Retell supplies the final, analyzed record.
+
+---
+
+## Cleanups performed
+
+- Removed several local test artifacts from `backend/` (`test_retell.py`, `test_enhanced_webhook.py`, `test_dispatch_scenario.py`, `test_web_call.html`).
+- Removed a malformed duplicate init file (`backend/_init_.py`) — only `backend/__init__.py` remains.
+
+If you prefer these scripts kept for local testing, I can move them to `dev-scripts/` instead of deleting.
+
+---
+
+## Troubleshooting tips
+
+- If Tailwind classes appear unstyled in the dev server, ensure `@tailwindcss/postcss` and `tailwindcss` are installed and restart Vite. A temporary CDN fallback may be present in `frontend/index.html` for quick visual testing.
+- If `npx` or `npm` commands fail in PowerShell due to execution policy, run PowerShell as Administrator or use Git Bash.
+- If Retell calls don't connect, verify `RETELL_API_KEY` and `WEBHOOK_URL` are correct and reachable from the public internet.
+
+---
+
+## Contributing
+
+1. Fork the repository
+2. Create a feature branch
+3. Implement changes and run `npx tsc --noEmit` (frontend) and start backend to verify
+4. Submit a pull request with a clear description of changes
+
+---
+
+## License
+
+MIT
+
+---
+
+If you want, I can:
+
+- Run the TypeScript check and the dev server here and report errors (one command at a time), or
+- Move the removed backend test scripts into `dev-scripts/` instead of deleting them, or
+- Add a short `backend/README.md` with local dev tips and environment variables.
+
+Which of those would you like next?
