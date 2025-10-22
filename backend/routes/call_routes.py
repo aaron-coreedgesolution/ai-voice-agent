@@ -8,6 +8,7 @@ from services.retell_service import RetellService
 import uuid
 import os
 import logging
+from datetime import datetime
 
 # Import requests safely
 try:
@@ -148,7 +149,7 @@ async def start_web_call(request: CallTriggerRequest):
         pipecat_base_url = os.getenv("PIPECAT_URL", "http://localhost:7860/client/")
         session_url = f"{pipecat_base_url}?call_id={call_id}&driver_name={driver_name}&load_number={load_number}"
 
-        # Optionally: store a placeholder record in Supabase if needed
+       # Store initial call record
         SupabaseService.insert_call_record(
             driver_name=driver_name,
             phone_number=phone_number,
@@ -157,6 +158,13 @@ async def start_web_call(request: CallTriggerRequest):
             structured_data={"call_id": call_id, "status": "initiated"},
             transcript=None,
         )
+
+        # Update analytics fields
+        SupabaseService.update_call_record(call_id, {
+            "call_id": call_id,
+            "status": "initiated",
+            "start_time": datetime.utcnow().isoformat(),
+        })
 
         return {
             "status": "success",
@@ -171,3 +179,58 @@ async def start_web_call(request: CallTriggerRequest):
     except Exception as e:
         logging.error(f"Error starting Pipecat web call: {e}")
         raise HTTPException(status_code=500, detail=str(e))
+
+@router.post("/complete")
+async def complete_call(call_data: Dict[str, Any]):
+    """
+    Mark a call as completed and calculate analytics.
+    """
+    call_id = call_data.get("call_id")
+    outcome = call_data.get("outcome", "completed")
+    transcript = call_data.get("transcript")
+    structured_data = call_data.get("structured_data", {})
+
+    call_record = SupabaseService.get_call_by_id(call_id)
+    if not call_record.data:
+        raise HTTPException(status_code=404, detail="Call not found")
+
+    start_time = call_record.data[0].get("start_time")
+    end_time = datetime.utcnow()
+    duration = None
+    if start_time:
+        try:
+            duration = (end_time - datetime.fromisoformat(start_time)).total_seconds()
+        except Exception:
+            duration = None
+
+    SupabaseService.update_call_record(call_id, {
+        "status": "completed",
+        "call_outcome": outcome,
+        "end_time": end_time.isoformat(),
+        "duration_seconds": duration,
+        "structured_data": structured_data,
+        "transcript": transcript,
+    })
+
+    return {"status": "success", "call_id": call_id, "duration_seconds": duration}
+
+@router.get("/analytics")
+def get_call_analytics():
+    """
+    Fetch summarized call analytics for dashboard.
+    """
+    response = SupabaseService.get_call_records()
+    records = response.data or []
+
+    total_calls = len(records)
+    completed = sum(1 for r in records if r.get("status") == "completed")
+    failed = sum(1 for r in records if r.get("status") == "failed")
+    durations = [r.get("duration_seconds") for r in records if r.get("duration_seconds")]
+    avg_duration = sum(durations) / len(durations) if durations else 0
+
+    return {
+        "total_calls": total_calls,
+        "completed": completed,
+        "failed": failed,
+        "average_duration": round(avg_duration, 2),
+    }
