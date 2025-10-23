@@ -139,22 +139,30 @@ const Dashboard: React.FC = () => {
     setStartingCall(true);
     try {
       const res = await api.post<ApiResponse<any>>("/calls/start", { driver_name: driverName, phone_number: phoneNumber, load_number: loadNumber, agent_id: selectedAgentId || null });
-      if (res?.data?.status === "success" && res?.data?.access_token) {
-        const client = new RetellWebClient();
-        setRetellClient(client);
-        retellClientRef.current = client;
-
-        (client as any).on?.("call_started", () => {
-          toast.success("Call started!");
-          setActiveCall({ driver_name: driverName, load_number: loadNumber, phone_number: phoneNumber });
-        });
-        (client as any).on?.("call_ended", () => { toast.info("Call ended"); setActiveCall(null); refreshCallRecords(); });
-        (client as any).on?.("error", (err: Error) => { toast.error(`Call error: ${err.message}`); setActiveCall(null); });
-
-        await (client as any).startCall?.({ accessToken: res.data.access_token });
-
-        setDriverName(""); setPhoneNumber(""); setLoadNumber(""); setSelectedAgentId("");
-      } else { throw new Error(res?.data?.error || "Failed to start call"); }
+      if (res?.data?.status === "success") {
+        const sessionUrl = res.data.session_url;
+        if (sessionUrl) window.open(sessionUrl, "_blank"); // <-- new tab
+      
+        // Initialize Retell client as before
+        if (res?.data?.access_token) {
+          const client = new RetellWebClient();
+          setRetellClient(client);
+          retellClientRef.current = client;
+      
+          (client as any).on?.("call_started", () => {
+            toast.success("Call started!");
+            setActiveCall({ driver_name: driverName, load_number: loadNumber, phone_number: phoneNumber });
+          });
+          (client as any).on?.("call_ended", () => { toast.info("Call ended"); setActiveCall(null); refreshCallRecords(); });
+          (client as any).on?.("error", (err: Error) => { toast.error(`Call error: ${err.message}`); setActiveCall(null); });
+      
+          await (client as any).startCall?.({ accessToken: res.data.access_token });
+      
+          setDriverName(""); setPhoneNumber(""); setLoadNumber(""); setSelectedAgentId("");
+        }
+      } else {
+        throw new Error(res?.data?.error || "Failed to start call");
+      }
     } catch (err) { console.error(err); toast.error("Failed to start call"); }
     finally { setStartingCall(false); }
   };

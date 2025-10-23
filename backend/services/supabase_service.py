@@ -63,6 +63,12 @@ class SupabaseService:
         transcript: str = None,
         call_request: CallRequest = None,
         summary: CallSummary = None,
+        call_id: str = None,
+        status: str = None,
+        start_time: str = None,
+        end_time: str = None,
+        duration_seconds: float = None,
+        agent_id: str = None,
     ):
         """Insert a call record using either direct fields or full schema objects."""
         if call_request:
